@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "tobiasz-p.next-event",
+  "name": "NextEvent",
+  "version": "1.0.0",
+  "author": "tobiasz-p",
+  "license": "MIT",
+  "description": "Next event in the bar — Google Calendar feed, click to join Google Meet.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "NextEvent",
+    "description": "Shows the next upcoming event (e.g. \"Daily in 15 min\") and joins Google Meet calls",
+    "category": "Productivity",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

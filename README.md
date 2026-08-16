@@ -7,7 +7,7 @@ the Google Meet call with a single click.
 <p align="center">
   <img src="preview.png" alt="NextEvent Overview" width="560">
   <br>
-  <em>Active meeting with live countdown in bar, hero card with Google Meet action, and multi-day agenda</em>
+  <em>Active meeting with live countdown in bar, hero card with Google Meet action, and multi-day agenda (shown in Matte Black theme)</em>
 </p>
 
 ## Screenshots
@@ -22,15 +22,12 @@ the Google Meet call with a single click.
 
 ## Features
 
-- Bar widget showing the next event: `Daily in 15 min`, `Daily · 15 min left`,
-  `Daily · 14:00`, `Daily · Tmrw 14:00`, `Daily · Wed 14:00`
-- Click to open a panel with the upcoming schedule; Join opens the Google Meet
-  link in your browser
-- Right-click on the widget: join the next meeting immediately
-- Middle-click: refetch the calendar
-- Recurring events (daily, weekly, monthly, yearly) are expanded, including
-  exceptions and overrides (EXDATE / RECURRENCE-ID)
-- Updates itself every few minutes; the countdown refreshes every 30 seconds
+- **Theme Aware**: Fully syncs with your active Omarchy theme (colors, typography, borders, and corner rounding adapt automatically)
+- **Bar Widget**: Shows the next event with live countdown (`Daily in 15 min`, `Daily · 15 min left`, `Daily · 14:00`, `Daily · Tmrw 14:00`, `Daily · Wed 14:00`)
+- **Quick Join**: Click to open the agenda panel; single click on "Join Meeting" opens the Google Meet link in your default browser
+- **Instant Actions**: Right-click on the bar widget to join the next meeting immediately; middle-click to force-refresh
+- **Smart Recurrence**: Expands recurring events (daily, weekly, monthly, yearly) including exceptions and overrides (`EXDATE` / `RECURRENCE-ID`)
+- **Live Updates**: Automatic background sync every few minutes, with a 30-second reactive countdown timer
 
 ## Install
 

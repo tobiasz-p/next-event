@@ -4,6 +4,16 @@ Next event, right in the bar — native to your Omarchy shell. Shows the next
 upcoming event (e.g. `Daily in 15 min`, `Daily · 15 min left`) and lets you join
 the Google Meet call with a single click.
 
+<p align="center">
+  <img src="preview.png" alt="NextEvent Overview" width="460">
+</p>
+
+## Screenshots
+
+| Happening Now & Agenda | Pre-Meeting / Upcoming | Setup & Onboarding | Empty Schedule |
+| :---: | :---: | :---: | :---: |
+| <img src="assets/schedule.png" width="220"> | <img src="assets/upcoming.png" width="220"> | <img src="assets/setup.png" width="220"> | <img src="assets/empty.png" width="220"> |
+
 ## Features
 
 - Bar widget showing the next event: `Daily in 15 min`, `Daily · 15 min left`,

@@ -5,14 +5,20 @@ upcoming event (e.g. `Daily in 15 min`, `Daily · 15 min left`) and lets you joi
 the Google Meet call with a single click.
 
 <p align="center">
-  <img src="preview.png" alt="NextEvent Overview" width="460">
+  <img src="preview.png" alt="NextEvent Overview" width="560">
+  <br>
+  <em>Active meeting with live countdown in bar, hero card with Google Meet action, and multi-day agenda</em>
 </p>
 
 ## Screenshots
 
-| Happening Now & Agenda | Pre-Meeting / Upcoming | Setup & Onboarding | Empty Schedule |
-| :---: | :---: | :---: | :---: |
-| <img src="assets/schedule.png" width="220"> | <img src="assets/upcoming.png" width="220"> | <img src="assets/setup.png" width="220"> | <img src="assets/empty.png" width="220"> |
+| Pre-Meeting / Upcoming | Setup & Onboarding Guide |
+| :---: | :---: |
+| <img src="assets/upcoming.png" alt="Upcoming Meeting" width="380"><br><sub><b>Pre-meeting state</b> with <code>NEXT</code> badge & countdown</sub> | <img src="assets/setup.png" alt="Setup Guide" width="380"><br><sub><b>Quick 3-step setup</b> with copy-pasteable command</sub> |
+
+| Empty Schedule State | Full Multi-Day Agenda |
+| :---: | :---: |
+| <img src="assets/empty.png" alt="Empty Schedule" width="380"><br><sub><b>Zero-state</b> when your schedule is clear</sub> | <img src="assets/schedule.png" alt="Full Schedule" width="380"><br><sub><b>Grouped agenda</b> across today, tomorrow, and future days</sub> |
 
 ## Features
 

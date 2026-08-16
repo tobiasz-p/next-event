@@ -46,8 +46,8 @@ BarWidget {
   readonly property bool fetching: fetchProc.running
   property date now: new Date()
 
-  readonly property string label: configured
-    ? (nextMeeting && nextMeeting.meetUrl ? "  " : "") + Model.formatLabel(nextMeeting, root.now, maxTitleLength)
+  readonly property string label: configured && nextMeeting
+    ? (nextMeeting.meetUrl ? "  " : "󰃯  ") + Model.formatLabel(nextMeeting, root.now, maxTitleLength)
     : ""
   readonly property bool inMeeting: nextMeeting
     && nextMeeting.start && nextMeeting.end
@@ -233,7 +233,7 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.label !== "" ? root.label : ""
+    text: root.label !== "" ? root.label : "󰃲"
     labelVisible: true
     hasVisualContent: true
     dimmed: root.label === ""

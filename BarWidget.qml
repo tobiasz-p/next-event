@@ -77,9 +77,13 @@ BarWidget {
     else openCalendar(event)
   }
 
+  // The feed URL is a credential (e.g. Google's "secret address in iCal
+  // format"), so it must never appear in a process argument list where every
+  // local user can read it. curl gets it over stdin as a `-K -` config line.
   function fetchCalendar() {
     if (!root.configured || fetchProc.running) return
-    fetchProc.command = ["curl", "-fsSL", "--max-time", "15", root.icsUrl]
+    fetchProc.stdinEnabled = true
+    fetchProc.command = ["curl", "-fsSL", "--max-time", "15", "-K", "-"]
     fetchProc.running = true
   }
 
@@ -212,6 +216,10 @@ BarWidget {
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.onCalendarData(text)
+    }
+    onStarted: {
+      fetchProc.write("url = \"" + root.icsUrl.replace(/([\\"])/g, "\\$1") + "\"\n")
+      fetchProc.stdinEnabled = false
     }
     onExited: function(exitCode) {
       if (exitCode !== 0) root.onCalendarError(exitCode)

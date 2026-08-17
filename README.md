@@ -13,7 +13,7 @@ upcoming event from your calendar with live countdowns and lets you join Google 
 
 | Pre-Meeting / Upcoming | Setup & Onboarding Guide |
 | :---: | :---: |
-| <img src="assets/upcoming.png" alt="Upcoming Meeting" width="380"><br><sub><b>Pre-meeting state</b> with <code>NEXT</code> badge & countdown</sub> | <img src="assets/setup.png" alt="Setup Guide" width="380"><br><sub><b>Quick 3-step setup</b> with copy-pasteable command</sub> |
+| <img src="assets/upcoming.png" alt="Upcoming Meeting" width="380"><br><sub><b>Pre-meeting state</b> with <code>NEXT</code> badge & countdown</sub> | <img src="assets/onboarding.png" alt="Setup Guide" width="380"><br><sub><b>Quick 3-step setup</b> with copy-pasteable command</sub> |
 
 | Empty Schedule State | Full Multi-Day Agenda |
 | :---: | :---: |

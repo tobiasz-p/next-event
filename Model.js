@@ -151,9 +151,98 @@ function weekdayOfKey(key) {
   return new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()
 }
 
+// --- VTIMEZONE -------------------------------------------------------------
+// Qt's V4 engine has no Intl, so IANA zone conversion comes from the
+// VTIMEZONE blocks the feed itself ships (RFC 5545 3.6.5). Google emits
+// either a single fixed-offset STANDARD or full STANDARD/DAYLIGHT rules.
+var TZTABLE = {}
+
+function parseUtcOffset(v) {
+  var m = /^([+-])(\d{2})(\d{2})(\d{2})?$/.exec(String(v || "").trim())
+  if (!m) return null
+  var mins = parseInt(m[2], 10) * 60 + parseInt(m[3], 10)
+  return m[1] === "-" ? -mins : mins
+}
+
+function wallKeyOf(y, mo, d, h, mi) {
+  return ((y * 100 + mo) * 100 + d) * 10000 + h * 100 + mi
+}
+
+function parseVTimezones(lines) {
+  TZTABLE = {}
+  var tzid = null, sub = null, entries = null
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim()
+    if (line === "BEGIN:VTIMEZONE") { tzid = null; entries = []; sub = null; continue }
+    if (line === "END:VTIMEZONE") {
+      if (tzid && entries && entries.length) TZTABLE[tzid] = entries
+      tzid = null; entries = null; sub = null; continue
+    }
+    if (!entries) continue
+    if (line === "BEGIN:STANDARD" || line === "BEGIN:DAYLIGHT") { sub = { offsetTo: null, dtstart: null, rrule: null }; continue }
+    if (line === "END:STANDARD" || line === "END:DAYLIGHT") {
+      if (sub && sub.offsetTo !== null && sub.dtstart) entries.push(sub)
+      sub = null; continue
+    }
+    var prop = splitProperty(line)
+    if (!prop) continue
+    if (prop.name === "TZID" && !sub) { tzid = prop.value.trim(); continue }
+    if (!sub) continue
+    if (prop.name === "TZOFFSETTO") sub.offsetTo = parseUtcOffset(prop.value)
+    else if (prop.name === "DTSTART") {
+      var m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/.exec(prop.value.trim())
+      if (m) sub.dtstart = { y: +m[1], mo: +m[2], d: +m[3], h: +m[4], mi: +m[5] }
+    }
+    else if (prop.name === "RRULE") sub.rrule = parseRRule(prop.value)
+  }
+}
+
+// Wall-clock key of this rule's latest transition at or before `target`.
+function lastTransitionKey(sub, target) {
+  var st = sub.dtstart
+  var base = wallKeyOf(st.y, st.mo, st.d, st.h, st.mi)
+  if (base > target) return null
+  var r = sub.rrule
+  if (!r || r.freq !== "YEARLY" || !r.bymonth.length || !r.byday.length) return base
+  var untilKey = null
+  if (r.until) {
+    untilKey = wallKeyOf(r.until.getUTCFullYear(), r.until.getUTCMonth() + 1,
+                         r.until.getUTCDate(), r.until.getUTCHours(), r.until.getUTCMinutes())
+  }
+  var mo = r.bymonth[0], bd = r.byday[0]
+  var ty = Math.floor(target / 100000000)
+  for (var y = ty; y >= ty - 1 && y >= st.y; y--) {
+    var day = nthWeekdayOfMonth(y, mo, bd.day, bd.ord || 1)
+    if (!day) continue
+    var k = wallKeyOf(y, mo, day, st.h, st.mi)
+    if (k > target) continue
+    if (untilKey !== null && k > untilKey) continue
+    return k > base ? k : base
+  }
+  return base
+}
+
+// Minutes east of UTC in effect for a wall-clock time in `tzid`, or null.
+function tzOffsetMinutes(tzid, y, mo, d, h, mi) {
+  var entries = TZTABLE[tzid]
+  if (!entries || !entries.length) return null
+  var target = wallKeyOf(y, mo, d, h, mi)
+  var bestKey = -1, bestOff = null
+  for (var i = 0; i < entries.length; i++) {
+    var k = lastTransitionKey(entries[i], target)
+    if (k === null) continue
+    if (k > bestKey) { bestKey = k; bestOff = entries[i].offsetTo }
+  }
+  return bestOff === null ? entries[0].offsetTo : bestOff
+}
+
 // Convert a "local" wall-clock { y, mo, d, h, mi, s } to a UTC Date.
-// TZID: try Intl-aware conversion, fall back to naive local handling.
+// TZID: prefer the feed's own VTIMEZONE offsets; then Intl where the engine
+// has it; last resort, naive local handling (wrong, but only for a TZID the
+// feed never defined).
 function zonedToUtc(tzid, y, mo, d, h, mi, s) {
+  var off = tzOffsetMinutes(tzid, y, mo, d, h, mi)
+  if (off !== null) return new Date(Date.UTC(y, mo - 1, d, h, mi, s) - off * 60000)
   try {
     var guess = new Date(Date.UTC(y, mo - 1, d, h, mi, s))
     var formatter = new Intl.DateTimeFormat("en-US", {
@@ -490,6 +579,7 @@ function parseIcs(raw, options) {
   var fromKey = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate()
 
   var lines = unfoldIcs(raw)
+  parseVTimezones(lines)
   var blocks = []
   var current = null
   for (var i = 0; i < lines.length; i++) {
@@ -802,6 +892,9 @@ if (typeof module !== "undefined" && module.exports) {
     parseRfcDate: parseRfcDate,
     parseRRule: parseRRule,
     parseIcs: parseIcs,
+    parseVTimezones: parseVTimezones,
+    tzOffsetMinutes: tzOffsetMinutes,
+    zonedToUtc: zonedToUtc,
     formatLabel: formatLabel,
     formatDuration: formatDuration,
     formatUpdated: formatUpdated,

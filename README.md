@@ -90,6 +90,65 @@ Available settings (`omarchy bar set <widget> <key> <value>`):
 The calendar feed is fetched directly from Google by your machine. No external
 service, no accounts, no telemetry.
 
+## Contributing
+
+Contributions are welcome! To help keep the codebase clean and git history maintainable, please follow these guidelines when opening a Pull Request.
+
+### Workflow & Creating a PR
+
+External contributors need to fork the repository first (as only maintainers have direct push access):
+
+1. **Fork the repository** on GitHub to your personal account.
+2. **Clone your fork** and add the upstream repository as a remote:
+   ```sh
+   git clone https://github.com/<your-username>/next-event.git
+   cd next-event
+   git remote add upstream https://github.com/tobiasz-p/next-event.git
+   ```
+3. **Create a feature branch**:
+   ```sh
+   git checkout -b feat/your-feature-name
+   # or
+   git checkout -b fix/issue-description
+   ```
+4. **Make your changes**: Test them locally in your Omarchy environment.
+5. **Push to your fork**:
+   ```sh
+   git push -u origin feat/your-feature-name
+   ```
+6. **Open a Pull Request**: Go to the GitHub repository and submit a PR from your branch against `upstream/main` with a clear description of the changes.
+
+### Commit Guidelines
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/). Write concise, descriptive commit messages in the imperative mood:
+
+```
+<type>(<optional scope>): <description>
+```
+
+**Common Types:**
+- `feat:` A new feature or capability
+- `fix:` A bug fix
+- `docs:` Documentation updates
+- `refactor:` Code changes that neither fix a bug nor add a feature
+- `style:` Formatting or UI styling adjustments without logic changes
+- `chore:` Maintenance tasks or dependency updates
+
+**Examples:**
+- `feat: add support for custom notification triggers`
+- `fix: handle edge case with zero-duration calendar events`
+- `docs: add troubleshooting steps for iCloud calendar feeds`
+
+### Meaningful Commits & Linear History
+
+- **Meaningful Commits Only**: Each commit should represent a complete, logical unit of work. Avoid leaving intermediate "WIP", "fix typo", or "checkpoint" commits in the history.
+- **Squash Fixups**: Squash or rebase intermediate commits locally (`git rebase -i`) before submitting or finalizing your PR.
+- **Linear History**: We maintain a strictly linear git history. PRs will be rebased onto `main` (no merge commits). Make sure your branch is up-to-date with upstream:
+  ```sh
+  git pull --rebase upstream main
+  ```
+
 ## License
 
 MIT
+

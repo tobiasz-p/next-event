@@ -151,10 +151,150 @@ function weekdayOfKey(key) {
   return new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()
 }
 
+// --- VTIMEZONE offset table -------------------------------------------------
+// QML's V4 engine has no Intl, so named zones must be resolved from the
+// VTIMEZONE blocks the feed itself ships.
+
+var TZ_TABLE = {}
+
+function parseTzOffset(value) {
+  var m = /^([+-])(\d{2})(\d{2})(\d{2})?$/.exec(String(value || "").trim())
+  if (!m) return null
+  var sign = m[1] === "-" ? -1 : 1
+  var mins = parseInt(m[2], 10) * 60 + parseInt(m[3], 10)
+  var secs = m[4] ? parseInt(m[4], 10) : 0
+  return sign * (mins * 60 + secs) * 1000
+}
+
+// Collect TZID -> observances from raw (already unfolded) ICS lines.
+function registerVTimezones(lines) {
+  var tzid = null
+  var inTz = false
+  var obs = null
+  var list = null
+  for (var i = 0; i < lines.length; i++) {
+    var line = String(lines[i]).trim()
+    if (!line) continue
+    if (line === "BEGIN:VTIMEZONE") { inTz = true; tzid = null; list = []; continue }
+    if (!inTz) continue
+    if (line === "END:VTIMEZONE") {
+      if (tzid && list && list.length) TZ_TABLE[tzid] = list
+      inTz = false; tzid = null; list = null; obs = null
+      continue
+    }
+    if (line === "BEGIN:STANDARD" || line === "BEGIN:DAYLIGHT") {
+      obs = { daylight: line === "BEGIN:DAYLIGHT", from: null, to: null, wall: null, rule: null }
+      continue
+    }
+    if (line === "END:STANDARD" || line === "END:DAYLIGHT") {
+      if (obs && obs.to !== null && obs.wall) {
+        if (obs.from === null) obs.from = obs.to
+        list.push(obs)
+      }
+      obs = null
+      continue
+    }
+    var prop = splitProperty(line)
+    if (!prop) continue
+    if (!obs) {
+      if (prop.name === "TZID") tzid = prop.value.trim()
+      continue
+    }
+    if (prop.name === "TZOFFSETFROM") obs.from = parseTzOffset(prop.value)
+    else if (prop.name === "TZOFFSETTO") obs.to = parseTzOffset(prop.value)
+    else if (prop.name === "DTSTART") {
+      var w = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?)?/.exec(prop.value.trim())
+      if (w) obs.wall = {
+        y: parseInt(w[1], 10), mo: parseInt(w[2], 10), d: parseInt(w[3], 10),
+        h: w[4] ? parseInt(w[4], 10) : 0,
+        mi: w[5] ? parseInt(w[5], 10) : 0,
+        s: w[6] ? parseInt(w[6], 10) : 0
+      }
+    }
+    else if (prop.name === "RRULE") {
+      var r = { month: 0, weekday: -1, ord: 0, monthday: 0 }
+      var segs = prop.value.split(";")
+      for (var k = 0; k < segs.length; k++) {
+        var kv = segs[k].split("=")
+        var key = String(kv[0] || "").toUpperCase()
+        var val = String(kv[1] || "").trim()
+        if (key === "BYMONTH") r.month = parseInt(val, 10) || 0
+        else if (key === "BYMONTHDAY") r.monthday = parseInt(val, 10) || 0
+        else if (key === "BYDAY") {
+          var bd = /^(-?\d+)?(SU|MO|TU|WE|TH|FR|SA)$/.exec(val.split(",")[0].trim())
+          if (bd) {
+            r.ord = bd[1] ? parseInt(bd[1], 10) : 1
+            r.weekday = WEEKDAY[bd[2]]
+          }
+        }
+      }
+      if (r.month) obs.rule = r
+    }
+  }
+}
+
+function nthWeekdayOfMonth(y, mo, weekday, ord) {
+  var dim = daysInMonthUTC(y, mo)
+  if (ord > 0) {
+    var firstDow = new Date(Date.UTC(y, mo - 1, 1)).getUTCDay()
+    var day = 1 + ((weekday - firstDow + 7) % 7) + (ord - 1) * 7
+    return day <= dim ? day : 0
+  }
+  if (ord < 0) {
+    var lastDow = new Date(Date.UTC(y, mo - 1, dim)).getUTCDay()
+    var day2 = dim - ((lastDow - weekday + 7) % 7) + (ord + 1) * 7
+    return day2 >= 1 ? day2 : 0
+  }
+  return 0
+}
+
+// Transition instants for a zone, expressed in that zone's wall clock (the
+// space RFC 5545 observance DTSTARTs live in), for the years around `year`.
+function zoneTransitions(list, year) {
+  var out = []
+  for (var i = 0; i < list.length; i++) {
+    var obs = list[i]
+    if (!obs.rule) {
+      out.push({ wallMs: Date.UTC(obs.wall.y, obs.wall.mo - 1, obs.wall.d, obs.wall.h, obs.wall.mi, obs.wall.s), from: obs.from, to: obs.to })
+      continue
+    }
+    for (var y = year - 1; y <= year + 1; y++) {
+      if (y < obs.wall.y) continue
+      var day = obs.rule.monthday
+        ? Math.min(obs.rule.monthday, daysInMonthUTC(y, obs.rule.month))
+        : nthWeekdayOfMonth(y, obs.rule.month, obs.rule.weekday, obs.rule.ord)
+      if (!day) continue
+      out.push({ wallMs: Date.UTC(y, obs.rule.month - 1, day, obs.wall.h, obs.wall.mi, obs.wall.s), from: obs.from, to: obs.to })
+    }
+  }
+  out.sort(function (a, b) { return a.wallMs - b.wallMs })
+  return out
+}
+
+// Offset in ms that applies to the given wall-clock time in `tzid`,
+// or null when the zone is unknown.
+function tzOffsetForWall(tzid, y, mo, d, h, mi, s) {
+  var list = TZ_TABLE[tzid]
+  if (!list || !list.length) return null
+  var wallMs = Date.UTC(y, mo - 1, d, h, mi, s)
+  var trans = zoneTransitions(list, y)
+  if (!trans.length) return null
+  var off = trans[0].from
+  for (var i = 0; i < trans.length; i++) {
+    if (wallMs >= trans[i].wallMs) off = trans[i].to
+    else break
+  }
+  return off === null ? null : off
+}
+
 // Convert a "local" wall-clock { y, mo, d, h, mi, s } to a UTC Date.
-// TZID: try Intl-aware conversion, fall back to naive local handling.
+// TZID resolution order: VTIMEZONE table, then Intl if the engine has it,
+// then naive local handling as a last resort.
 function zonedToUtc(tzid, y, mo, d, h, mi, s) {
+  var tableOffset = tzOffsetForWall(tzid, y, mo, d, h, mi, s)
+  if (tableOffset !== null) return new Date(Date.UTC(y, mo - 1, d, h, mi, s) - tableOffset)
   try {
+    if (typeof Intl === "undefined") throw new Error("no Intl")
     var guess = new Date(Date.UTC(y, mo - 1, d, h, mi, s))
     var formatter = new Intl.DateTimeFormat("en-US", {
       timeZone: tzid,
@@ -490,6 +630,7 @@ function parseIcs(raw, options) {
   var fromKey = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate()
 
   var lines = unfoldIcs(raw)
+  registerVTimezones(lines)
   var blocks = []
   var current = null
   for (var i = 0; i < lines.length; i++) {
@@ -814,6 +955,9 @@ if (typeof module !== "undefined" && module.exports) {
     upcomingToday: upcomingToday,
     eventCalendarUrl: eventCalendarUrl,
     hm: hm,
-    timeRange: timeRange
+    timeRange: timeRange,
+    registerVTimezones: registerVTimezones,
+    tzOffsetForWall: tzOffsetForWall,
+    zonedToUtc: zonedToUtc
   }
 }

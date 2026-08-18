@@ -12,6 +12,12 @@ function pad2(n) { return (n < 10 ? "0" : "") + n }
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
 
+var MS_PER_DAY  = 86400000
+var MS_PER_HOUR = 3600000
+
+// Sync contract: responseStatus value written by next-event-sync for declined invitations.
+var RESPONSE_STATUS_DECLINED = "declined"
+
 // RFC 5545 line unfolding: CRLF followed by a single space or tab is a
 // continuation of the previous line.
 function unfoldIcs(raw) {
@@ -318,7 +324,7 @@ function expandOccurrences(startKey, tzInfo, rule, fromKey, lookaheadDays, maxOc
     if (!date) return
     if (rule.until) {
       var until = rule.until.getTime()
-      if (rule.untilAllDay) until += 86400000 - 1
+      if (rule.untilAllDay) until += MS_PER_DAY - 1
       if (date.getTime() > until) return
     }
     out.push(date)
@@ -476,7 +482,7 @@ function parseEventBlock(block) {
   if (ev.end && ev.end.getTime() > ev.start.getTime()) {
     ev.durationMs = ev.end.getTime() - ev.start.getTime()
   } else {
-    ev.durationMs = ev.allDay ? 86400000 : 3600000
+    ev.durationMs = ev.allDay ? MS_PER_DAY : MS_PER_HOUR
     ev.end = new Date(ev.start.getTime() + ev.durationMs)
   }
   return ev
@@ -566,7 +572,105 @@ function parseIcs(raw, options) {
   return result
 }
 
+// --- JSON state document parsing (~/.local/state/omarchy/calendar-events.json)
+
+function parseIsoDate(val) {
+  if (!val) return null
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : { date: val, allDay: false }
+  if (typeof val === "number") return { date: new Date(val), allDay: false }
+  var s = String(val).trim()
+  if (!s) return null
+  var dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
+  if (dateOnly) {
+    var y = parseInt(dateOnly[1], 10)
+    var mo = parseInt(dateOnly[2], 10) - 1
+    var d = parseInt(dateOnly[3], 10)
+    return { date: new Date(y, mo, d), allDay: true }
+  }
+  var parsed = new Date(s)
+  if (isNaN(parsed.getTime())) return null
+  return { date: parsed, allDay: false }
+}
+
+function parseJsonEvents(raw, options) {
+  options = options || {}
+  var doc = null
+  if (typeof raw === "string") {
+    try {
+      doc = JSON.parse(raw)
+    } catch (e) {
+      return []
+    }
+  } else if (raw && typeof raw === "object") {
+    doc = raw
+  }
+  if (!doc) return []
+
+  var rawList = []
+  if (Array.isArray(doc)) {
+    rawList = doc
+  } else if (Array.isArray(doc.events)) {
+    rawList = doc.events
+  } else {
+    return []
+  }
+
+  var result = []
+  for (var i = 0; i < rawList.length; i++) {
+    var item = rawList[i]
+    if (!item) continue
+    if (item.responseStatus === RESPONSE_STATUS_DECLINED) continue
+
+    var startParsed = parseIsoDate(item.start)
+    if (!startParsed) continue
+    var startDate = startParsed.date
+
+    var endParsed = parseIsoDate(item.end)
+    var endDate = endParsed ? endParsed.date : null
+
+    var allDay = item.allDay === true || startParsed.allDay === true
+    if (!endDate || endDate.getTime() <= startDate.getTime()) {
+      endDate = new Date(startDate.getTime() + (allDay ? MS_PER_DAY : MS_PER_HOUR))
+    }
+
+    var meetUrl = item.meetingUrl || item.meetUrl || null
+    if (!meetUrl) {
+      meetUrl = findMeetUrl((item.location || "") + " " + (item.description || ""))
+    }
+
+    result.push({
+      uid: item.id || item.uid || ("json-event-" + i),
+      title: item.title || item.summary || "(Untitled)",
+      start: startDate,
+      end: endDate,
+      allDay: allDay,
+      meetUrl: meetUrl || null,
+      location: item.location || "",
+      description: item.description || "",
+      calendarName: item.calendarName || "",
+      calendarColor: item.color || null,
+      eventUrl: item.eventUrl || null
+    })
+  }
+  return result
+}
+
 // --- selection + labels ----------------------------------------------------
+
+// Parses a JSON state document; returns { events, syncedAt }.
+function parseJsonState(raw, options) {
+  options = options || {}
+  var doc = null
+  if (typeof raw === "string") {
+    try { doc = JSON.parse(raw) } catch (e) { return { events: [], syncedAt: null } }
+  } else if (raw && typeof raw === "object") {
+    doc = raw
+  }
+  if (!doc) return { events: [], syncedAt: null }
+  var events = parseJsonEvents(doc, options)
+  return { events: events, syncedAt: doc.syncedAt || null }
+}
+
 
 function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
@@ -588,7 +692,7 @@ function timeRange(start, end) {
 function meetingTimeLabel(start, end, now) {
   var labels = []
   if (isSameDay(start, now)) labels.push("Today")
-  else if (isSameDay(start, new Date(now.getTime() + 86400000))) labels.push("Tomorrow")
+  else if (isSameDay(start, new Date(now.getTime() + MS_PER_DAY))) labels.push("Tomorrow")
   else {
     var dow = WEEKDAY_NAMES[start.getDay()]
     var mo = MONTH_NAMES_SHORT[start.getMonth()]
@@ -619,8 +723,7 @@ function relativeStatus(next, now) {
 }
 
 function dayLabel(start, now) {
-  var oneDay = 86400000
-  var dayDiff = Math.round((startOfDay(start) - startOfDay(now)) / oneDay)
+  var dayDiff = Math.round((startOfDay(start) - startOfDay(now)) / MS_PER_DAY)
   if (dayDiff === 0) return "Today"
   if (dayDiff === 1) return "Tmrw"
   if (dayDiff === -1) return "Yest"
@@ -680,7 +783,7 @@ function buildUpcoming(events, now, options) {
   var showOnlyWithVideoLink = options.showOnlyWithVideoLink !== false
   var maxRows = Math.max(1, parseInt(options.maxRows, 10) || 20)
   var t = now.getTime()
-  var horizon = t + lookaheadDays * 86400000
+  var horizon = t + lookaheadDays * MS_PER_DAY
 
   var upcoming = []
   for (var i = 0; i < events.length; i++) {
@@ -709,8 +812,7 @@ function formatDuration(start, end) {
 }
 
 function daySectionTitle(date, now) {
-  var oneDay = 86400000
-  var diff = Math.round((startOfDay(date) - startOfDay(now)) / oneDay)
+  var diff = Math.round((startOfDay(date) - startOfDay(now)) / MS_PER_DAY)
   if (diff === 0) return "TODAY"
   if (diff === 1) return "TOMORROW"
   var dow = WEEKDAY_NAMES[date.getDay()].toUpperCase()
@@ -724,7 +826,7 @@ function buildScheduleGroups(events, now, options) {
   var lookaheadDays = Math.max(1, parseInt(options.lookaheadDays, 10) || 3)
   var maxRows = Math.max(1, parseInt(options.maxRows, 10) || 20)
   var t = now.getTime()
-  var horizon = t + lookaheadDays * 86400000
+  var horizon = t + lookaheadDays * MS_PER_DAY
 
   var valid = []
   for (var i = 0; i < (events || []).length; i++) {
@@ -778,8 +880,9 @@ function upcomingToday(events, now) {
 }
 
 // Google Calendar link for an event.
-// Always opens the main calendar view at `/r` (e.g. `https://calendar.google.com/calendar/u/1/r`).
+// Uses direct event link if provided by sync, otherwise opens calendar view.
 function eventCalendarUrl(ev, base) {
+  if (ev && ev.eventUrl) return ev.eventUrl
   var b = String(base || "https://calendar.google.com/calendar").trim().replace(/\/+$/, "")
   if (/\/r$/.test(b)) return b
   return b + "/r"
@@ -802,6 +905,9 @@ if (typeof module !== "undefined" && module.exports) {
     parseRfcDate: parseRfcDate,
     parseRRule: parseRRule,
     parseIcs: parseIcs,
+    parseIsoDate: parseIsoDate,
+    parseJsonEvents: parseJsonEvents,
+    parseJsonState: parseJsonState,
     formatLabel: formatLabel,
     formatDuration: formatDuration,
     formatUpdated: formatUpdated,

@@ -1,0 +1,272 @@
+#!/usr/bin/env bash
+# Interactive onboarding for Google Workspace / Google Calendar sync using `gum`.
+#
+# Automates: GCP project configuration, OAuth client credentials import,
+# user authentication, initial sync, and systemd background timer.
+
+set -euo pipefail
+
+if ! command -v gum >/dev/null 2>&1; then
+  echo "Error: 'gum' is required for NextEvent setup." >&2
+  echo "Install it via your package manager (e.g. pacman -S gum)." >&2
+  exit 1
+fi
+
+PROJECT_ID="${PROJECT_ID:-}"
+PROFILE="${PROFILE:-$HOME/.config/gws-omarchy-calendar}"
+GCLOUD_CONFIG="${GCLOUD_CONFIG:-next-event}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SYNC_BIN="$SCRIPT_DIR/next-event-sync"
+SCOPE="https://www.googleapis.com/auth/calendar.readonly"
+
+banner() {
+  gum style \
+    --foreground 99 --border-foreground 99 --border double \
+    --align center --width 64 --margin "1 0" --padding "1 2" \
+    "NextEvent — Google Calendar OAuth Setup" \
+    "Connect Google Workspace & Private Calendars"
+}
+
+step_header() {
+  printf '\n'
+  gum style --foreground 39 --bold "[$1] $2"
+}
+
+info() {
+  gum style --foreground 245 "    $1"
+}
+
+success() {
+  gum style --foreground 48 "  ✓ $1"
+}
+
+warn() {
+  gum style --foreground 214 "  ! $1"
+}
+
+open_url() {
+  local url="$1"
+  if command -v xdg-open >/dev/null 2>&1; then
+    (nohup xdg-open "$url" </dev/null >/dev/null 2>&1 &)
+  elif command -v open >/dev/null 2>&1; then
+    (nohup open "$url" </dev/null >/dev/null 2>&1 &)
+  fi
+}
+
+pause_step() {
+  local prompt="${1:-Press Enter to continue}"
+  if [ -t 0 ]; then
+    printf '\n'
+    gum style --foreground 212 --bold "❯ $prompt"
+    read -r _ || true
+  fi
+}
+
+chmod +x "$SYNC_BIN" 2>/dev/null || true
+
+banner
+
+gum style --foreground 252 --width 64 \
+  "Google Workspace organizations often disable private .ics feeds." \
+  "This tool connects your Google Calendar via OAuth using your own" \
+  "Google Cloud project so tokens never expire and your data stays private."
+
+# 1. Check prerequisites
+step_header "1/6" "Checking prerequisites"
+
+if ! command -v gws >/dev/null 2>&1; then
+  warn "gws (Google Workspace CLI) is not installed."
+  gum style --foreground 214 --border rounded --padding "0 1" \
+    "Install gws with npm:" \
+    "  npm install -g @googleworkspace/cli" \
+    "" \
+    "Or visit: https://github.com/googleworkspace/cli"
+  exit 1
+fi
+GWS_VER=$(gws --version 2>/dev/null | head -n 1 || echo 'ok')
+success "Found gws CLI ($GWS_VER)"
+
+mkdir -p "$PROFILE"
+chmod 700 "$PROFILE"
+
+# 2. Check gcloud or manual project creation
+step_header "2/6" "Google Cloud Project Configuration"
+
+if command -v gcloud >/dev/null 2>&1; then
+  info "Using isolated gcloud configuration '$GCLOUD_CONFIG'..."
+  gcloud config configurations describe "$GCLOUD_CONFIG" >/dev/null 2>&1 \
+    || gcloud config configurations create "$GCLOUD_CONFIG" --no-activate
+  export CLOUDSDK_ACTIVE_CONFIG_NAME="$GCLOUD_CONFIG"
+
+  CURRENT_ACC=$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | head -n1)
+  if [ -n "$CURRENT_ACC" ]; then
+    success "Signed in to gcloud as: $CURRENT_ACC"
+  else
+    info "Signing in to Google Cloud CLI..."
+    gcloud auth login
+  fi
+
+  if [ -z "$PROJECT_ID" ]; then
+    PROJECT_ID=$(gcloud projects list --filter="projectId ~ ^nextevent-cal" --format='value(projectId)' --limit=1 2>/dev/null || true)
+    if [ -z "$PROJECT_ID" ]; then
+      PROJECT_ID="nextevent-cal-$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')"
+      info "Creating GCP project: $PROJECT_ID..."
+      gcloud projects create "$PROJECT_ID" --name="NextEvent Calendar" >/dev/null 2>&1 || true
+    else
+      info "Reusing existing GCP project: $PROJECT_ID"
+    fi
+  fi
+
+  gcloud config set project "$PROJECT_ID" >/dev/null 2>&1 || true
+  info "Enabling Google Calendar API on project $PROJECT_ID..."
+  gcloud services enable calendar-json.googleapis.com --project="$PROJECT_ID" >/dev/null 2>&1 || true
+  success "Google Calendar API enabled on $PROJECT_ID"
+else
+  info "gcloud CLI not found (skipping automated project creation)."
+  info "You can create a project manually at: https://console.cloud.google.com/projectcreate"
+fi
+
+# 3. Google Cloud Console manual steps
+step_header "3/6" "Configure OAuth in Google Cloud Console"
+
+CONSENT_URL="https://console.cloud.google.com/apis/credentials/consent"
+CLIENT_URL="https://console.cloud.google.com/apis/credentials/oauthclient"
+
+gum style --border rounded --border-foreground 39 --padding "1 2" --width 66 \
+  "Google Cloud Console Steps:" \
+  "" \
+  "1. OAuth Consent Screen / Data Access ($CONSENT_URL)" \
+  "   • User Type: External (or Internal for Workspace)" \
+  "   • App Name: NextEvent (enter support email)" \
+  "   • Under 'Manually add scopes', paste:" \
+  "     https://www.googleapis.com/auth/calendar.readonly" \
+  "     Click 'Add to table' -> 'Update' -> 'Save and continue'" \
+  "   • Audience: Click 'PUBLISH APP' (so tokens don't expire after 7 days)" \
+  "" \
+  "2. Desktop OAuth Client ($CLIENT_URL)" \
+  "   • Application Type: Desktop App" \
+  "   • Name: NextEvent Client" \
+  "   • Click 'Create' -> Click 'Download JSON' to save to ~/Downloads"
+
+if gum confirm --default=true "Open Google Cloud Console in your browser?"; then
+  open_url "$CONSENT_URL"
+fi
+
+pause_step "Press Enter once you have downloaded the client secret JSON file to continue..."
+
+# 4. Ingest client credentials
+step_header "4/6" "Importing Client Credentials"
+
+CLIENT_SECRET_FILE="$PROFILE/client_secret.json"
+SECRET_IMPORTED=false
+
+AUTO_SECRET=$(find "$HOME/Downloads" -maxdepth 1 -name "client_secret_*.json" -type f 2>/dev/null | head -n 1 || true)
+
+if [ -f "$CLIENT_SECRET_FILE" ]; then
+  success "Found existing credentials file at $CLIENT_SECRET_FILE"
+  if gum confirm --default=true "Use existing credentials in $CLIENT_SECRET_FILE?"; then
+    SECRET_IMPORTED=true
+  fi
+fi
+
+if [ "$SECRET_IMPORTED" = false ] && [ -n "$AUTO_SECRET" ] && [ -f "$AUTO_SECRET" ]; then
+  if gum confirm --default=true "Found client secret at '$AUTO_SECRET'. Use it?"; then
+    cp "$AUTO_SECRET" "$CLIENT_SECRET_FILE"
+    chmod 600 "$CLIENT_SECRET_FILE"
+    success "Imported $AUTO_SECRET"
+    SECRET_IMPORTED=true
+  fi
+fi
+
+if [ "$SECRET_IMPORTED" = false ]; then
+  METHOD=$(gum choose "Browse / Select JSON file" "Enter file path" "Enter Client ID & Secret manually")
+
+  case "$METHOD" in
+    "Browse / Select JSON file")
+      SELECTED_FILE=$(gum file "$HOME/Downloads" --file || true)
+      if [ -n "$SELECTED_FILE" ] && [ -f "$SELECTED_FILE" ]; then
+        cp "$SELECTED_FILE" "$CLIENT_SECRET_FILE"
+        chmod 600 "$CLIENT_SECRET_FILE"
+        success "Imported credentials from $SELECTED_FILE"
+        SECRET_IMPORTED=true
+      fi
+      ;;
+
+    "Enter file path")
+      INPUT_PATH=$(gum input --placeholder "Path to client_secret_*.json (e.g. ~/Downloads/client_secret.json)" --width 60)
+      # Expand tilde safely without eval
+      INPUT_PATH="${INPUT_PATH/#\~/$HOME}"
+      if [ -n "$INPUT_PATH" ] && [ -f "$INPUT_PATH" ]; then
+        cp "$INPUT_PATH" "$CLIENT_SECRET_FILE"
+        chmod 600 "$CLIENT_SECRET_FILE"
+        success "Imported $INPUT_PATH"
+        SECRET_IMPORTED=true
+      else
+        warn "File not found at $INPUT_PATH"
+      fi
+      ;;
+
+    *)
+      # "Enter Client ID & Secret manually"
+      info "Enter your OAuth Client credentials manually:"
+      CLIENT_ID=$(gum input --placeholder "OAuth Client ID (e.g. xxxx.apps.googleusercontent.com)" --width 60)
+      CLIENT_SECRET=$(gum input --password --placeholder "OAuth Client Secret" --width 60)
+      cat > "$CLIENT_SECRET_FILE" <<JSONEOF
+{"installed":{"client_id":"$CLIENT_ID","client_secret":"$CLIENT_SECRET","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token"}}
+JSONEOF
+      chmod 600 "$CLIENT_SECRET_FILE"
+      success "Saved credentials to $CLIENT_SECRET_FILE"
+      ;;
+  esac
+fi
+
+# 5. Authenticate via gws
+step_header "5/6" "OAuth Login via Browser"
+
+info "Opening browser for Google Workspace authentication..."
+export GOOGLE_WORKSPACE_CLI_CONFIG_DIR="$PROFILE"
+
+gws auth login --scopes="$SCOPE"
+
+success "Authentication successful!"
+
+# 6. Test sync & setup systemd
+step_header "6/6" "Testing Sync & Configuring Systemd Timer"
+
+gum spin --spinner dot --title "Syncing calendar events..." -- "$SYNC_BIN"
+
+success "Synced events into ~/.local/state/omarchy/calendar-events.json"
+
+# Install systemd unit files from the canonical copies in sync/systemd/,
+# substituting the runtime paths. This keeps a single source of truth.
+SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
+SYSTEMD_SRC="$SCRIPT_DIR/systemd"
+mkdir -p "$SYSTEMD_USER_DIR"
+
+sed \
+  -e "s|%h/.config/omarchy/plugins/tobiasz-p.next-event/sync/next-event-sync|$SYNC_BIN|g" \
+  -e "s|%h/.config/gws-omarchy-calendar|$PROFILE|g" \
+  -e "s|%h/.local/state/omarchy|$HOME/.local/state/omarchy|g" \
+  "$SYSTEMD_SRC/next-event-sync.service" \
+  > "$SYSTEMD_USER_DIR/next-event-sync.service"
+
+cp "$SYSTEMD_SRC/next-event-sync.timer" "$SYSTEMD_USER_DIR/next-event-sync.timer"
+
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl --user daemon-reload 2>/dev/null || true
+  systemctl --user enable --now next-event-sync.timer 2>/dev/null || true
+  success "Enabled systemd user timer (next-event-sync.timer)"
+fi
+
+if command -v omarchy >/dev/null 2>&1; then
+  omarchy bar set tobiasz-p.next-event icsUrl "" 2>/dev/null || true
+fi
+
+gum style \
+  --foreground 48 --border-foreground 48 --border rounded \
+  --align center --width 64 --margin "1 0" --padding "1 2" \
+  "✓ NextEvent Setup Complete!" \
+  "" \
+  "Events are synced to ~/.local/state/omarchy/calendar-events.json" \
+  "Automatic background sync runs every 5 minutes." \
+  "NextEvent in your Omarchy bar is ready!"

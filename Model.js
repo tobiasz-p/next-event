@@ -968,6 +968,7 @@ if (typeof module !== "undefined" && module.exports) {
     hm: hm,
     timeRange: timeRange,
     registerVTimezones: registerVTimezones,
+    parseTzOffset: parseTzOffset,
     tzOffsetForWall: tzOffsetForWall,
     zonedToUtc: zonedToUtc
   }

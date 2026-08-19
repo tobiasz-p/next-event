@@ -155,19 +155,30 @@ function weekdayOfKey(key) {
 // QML's V4 engine has no Intl, so named zones must be resolved from the
 // VTIMEZONE blocks the feed itself ships.
 
+// RFC 5545 offset/rule units, and how far either side of a target year the
+// transition search must look (DST observances always repeat yearly).
+var MS_PER_SECOND = 1000
+var SECONDS_PER_MINUTE = 60
+var MINUTES_PER_HOUR = 60
+var DAYS_PER_WEEK = 7
+var TRANSITION_YEAR_MARGIN = 1
+
 var TZ_TABLE = {}
 
+// Parse an RFC 5545 UTC offset ([+-]HHMM[SS]) into milliseconds.
 function parseTzOffset(value) {
   var m = /^([+-])(\d{2})(\d{2})(\d{2})?$/.exec(String(value || "").trim())
   if (!m) return null
   var sign = m[1] === "-" ? -1 : 1
-  var mins = parseInt(m[2], 10) * 60 + parseInt(m[3], 10)
-  var secs = m[4] ? parseInt(m[4], 10) : 0
-  return sign * (mins * 60 + secs) * 1000
+  var minutes = parseInt(m[2], 10) * MINUTES_PER_HOUR + parseInt(m[3], 10)
+  var seconds = m[4] ? parseInt(m[4], 10) : 0
+  return sign * (minutes * SECONDS_PER_MINUTE + seconds) * MS_PER_SECOND
 }
 
 // Collect TZID -> observances from raw (already unfolded) ICS lines.
+// Reset the table so it reflects only the current feed's VTIMEZONE blocks.
 function registerVTimezones(lines) {
+  TZ_TABLE = {}
   var tzid = null
   var inTz = false
   var obs = null
@@ -183,7 +194,7 @@ function registerVTimezones(lines) {
       continue
     }
     if (line === "BEGIN:STANDARD" || line === "BEGIN:DAYLIGHT") {
-      obs = { daylight: line === "BEGIN:DAYLIGHT", from: null, to: null, wall: null, rule: null }
+      obs = { from: null, to: null, wall: null, rule: null }
       continue
     }
     if (line === "END:STANDARD" || line === "END:DAYLIGHT") {
@@ -237,12 +248,12 @@ function nthWeekdayOfMonth(y, mo, weekday, ord) {
   var dim = daysInMonthUTC(y, mo)
   if (ord > 0) {
     var firstDow = new Date(Date.UTC(y, mo - 1, 1)).getUTCDay()
-    var day = 1 + ((weekday - firstDow + 7) % 7) + (ord - 1) * 7
+    var day = 1 + ((weekday - firstDow + DAYS_PER_WEEK) % DAYS_PER_WEEK) + (ord - 1) * DAYS_PER_WEEK
     return day <= dim ? day : 0
   }
   if (ord < 0) {
     var lastDow = new Date(Date.UTC(y, mo - 1, dim)).getUTCDay()
-    var day2 = dim - ((lastDow - weekday + 7) % 7) + (ord + 1) * 7
+    var day2 = dim - ((lastDow - weekday + DAYS_PER_WEEK) % DAYS_PER_WEEK) + (ord + 1) * DAYS_PER_WEEK
     return day2 >= 1 ? day2 : 0
   }
   return 0
@@ -258,7 +269,7 @@ function zoneTransitions(list, year) {
       out.push({ wallMs: Date.UTC(obs.wall.y, obs.wall.mo - 1, obs.wall.d, obs.wall.h, obs.wall.mi, obs.wall.s), from: obs.from, to: obs.to })
       continue
     }
-    for (var y = year - 1; y <= year + 1; y++) {
+    for (var y = year - TRANSITION_YEAR_MARGIN; y <= year + TRANSITION_YEAR_MARGIN; y++) {
       if (y < obs.wall.y) continue
       var day = obs.rule.monthday
         ? Math.min(obs.rule.monthday, daysInMonthUTC(y, obs.rule.month))

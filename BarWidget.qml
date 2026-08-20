@@ -17,7 +17,9 @@ BarWidget {
   moduleName: "tobiasz-p.next-event"
 
   // ---- settings (shell.json layout entry, `omarchy bar set`)
-  readonly property string icsUrl: String(setting("icsUrl", "") || "").trim()
+  // icsUrl is now a feed list: "url", "url1,url2", "label|url" per feed
+  // (comma-separated), or a JSON array of strings / { url, label } objects.
+  readonly property var icsFeeds: Model.splitIcsFeeds(setting("icsUrl", ""))
   readonly property int refreshMinutes: Math.max(1, parseInt(setting("refreshMinutes", 5), 10) || 5)
   readonly property int showDaysAhead: Math.max(1, parseInt(setting("showDaysAhead", 3), 10) || 3)
   readonly property int maxTitleLength: Math.max(8, parseInt(setting("maxTitleLength", 28), 10) || 28)
@@ -35,7 +37,7 @@ BarWidget {
   readonly property string calendarUrlBase: String(setting("calendarUrlBase", "https://calendar.google.com/calendar") || "").trim()
 
   // ---- state
-  readonly property bool configured: icsUrl !== ""
+  readonly property bool configured: icsFeeds.length > 0
   property var rawEvents: []
   property var meetings: []
   property var upcomingToday: []
@@ -43,8 +45,19 @@ BarWidget {
   property var nextMeeting: null
   property date lastUpdated: new Date(0)
   property bool lastFetchFailed: false
+  // Number of feeds that failed on the last fetch while *some* succeeded;
+  // 0 means all known feeds responded. Used for a partial-offline status.
+  property int offlineFeedCount: 0
   readonly property bool fetching: fetchProc.running
   property date now: new Date()
+
+  // Internal fetch-loop state (populated by fetchCalendar).
+  property var pendingFeeds: []
+  property var feedChunks: []
+  property var failedFeeds: []
+  property string currentFeedUrl: ""
+  property string currentFeedLabel: ""
+  property string feedOutput: ""
 
   readonly property string label: configured && nextMeeting
     ? (nextMeeting.meetUrl ? "  " : "󰃯  ") + Model.formatLabel(nextMeeting, root.now, maxTitleLength)
@@ -79,31 +92,85 @@ BarWidget {
 
   // The feed URL is a credential (e.g. Google's "secret address in iCal
   // format"), so it must never appear in a process argument list where every
-  // local user can read it. curl gets it over stdin as a `-K -` config line.
+  // local user can read it. curl gets each URL over stdin as a `-K -` config
+  // line. Feeds are fetched one at a time so a single offline feed doesn't
+  // take down the whole widget: the rest still render, and the failed count is
+  // surfaced as a partial-offline status.
   function fetchCalendar() {
     if (!root.configured || fetchProc.running) return
+    root.pendingFeeds = root.icsFeeds.slice()
+    root.feedChunks = []
+    root.failedFeeds = []
+    root.offlineFeedCount = 0
+    if (root.pendingFeeds.length === 0) {
+      root.lastFetchFailed = false
+      root.meetingDataChanged()
+      return
+    }
+    root.startNextFetch()
+  }
+
+  function startNextFetch() {
+    if (root.pendingFeeds.length === 0) {
+      root.finishFetch()
+      return
+    }
+    var feed = root.pendingFeeds[0]
+    root.currentFeedUrl = String(feed.url || "").trim()
+    root.currentFeedLabel = feed.label ? String(feed.label).trim() : ""
+    root.feedOutput = ""
+    if (!root.currentFeedUrl) {
+      root.pendingFeeds.shift()
+      root.startNextFetch()
+      return
+    }
     fetchProc.stdinEnabled = true
     fetchProc.command = ["curl", "-fsSL", "--max-time", "15", "-K", "-"]
     fetchProc.running = true
   }
 
-  function refresh() {
-    fetchCalendar()
+  // Accumulate one parsed feed's events (tagged with its label) and continue.
+  function onFeedStreamFinished(text) {
+    root.feedOutput = String(text || "")
   }
 
-  function onCalendarData(raw) {
-    var text = String(raw || "").trim()
-    if (!text) {
+  function onFeedExited(exitCode) {
+    var raw = root.feedOutput.trim()
+    if (exitCode === 0 && raw) {
+      var events = Model.parseIcs(raw, {
+        lookaheadDays: root.showDaysAhead + 1,
+        maxEvents: 80,
+        now: root.now
+      })
+      if (root.currentFeedLabel) {
+        for (var i = 0; i < events.length; i++) events[i].feedLabel = root.currentFeedLabel
+      }
+      root.feedChunks.push(events)
+    } else {
+      root.failedFeeds.push(root.currentFeedUrl)
+    }
+    root.pendingFeeds.shift()
+    root.feedOutput = ""
+    root.startNextFetch()
+  }
+
+  function finishFetch() {
+    root.offlineFeedCount = root.failedFeeds.length
+
+    var all = []
+    for (var c = 0; c < root.feedChunks.length; c++) {
+      all = all.concat(root.feedChunks[c])
+    }
+    var events = Model.dedupeEvents(all)
+    root.rawEvents = events
+
+    if (events.length === 0 && root.offlineFeedCount > 0 && root.feedChunks.length === 0) {
+      // Every feed failed: no data at all.
       root.lastFetchFailed = true
       root.meetingDataChanged()
       return
     }
-    var events = Model.parseIcs(text, {
-      lookaheadDays: root.showDaysAhead + 1,
-      maxEvents: 80,
-      now: root.now
-    })
-    root.rawEvents = events
+
     root.meetings = Model.buildUpcoming(events, root.now, {
       lookaheadDays: root.showDaysAhead,
       showOnlyWithVideoLink: root.showOnlyWithVideoLink,
@@ -120,9 +187,8 @@ BarWidget {
     root.meetingDataChanged()
   }
 
-  function onCalendarError(exitCode) {
-    root.lastFetchFailed = true
-    root.meetingDataChanged()
+  function refresh() {
+    fetchCalendar()
   }
 
   function recalc() {
@@ -215,14 +281,14 @@ BarWidget {
     id: fetchProc
     stdout: StdioCollector {
       waitForEnd: true
-      onStreamFinished: root.onCalendarData(text)
+      onStreamFinished: root.onFeedStreamFinished(text)
     }
     onStarted: {
-      fetchProc.write("url = \"" + root.icsUrl.replace(/([\\"])/g, "\\$1") + "\"\n")
+      fetchProc.write("url = \"" + root.currentFeedUrl.replace(/([\\"])/g, "\\$1") + "\"\n")
       fetchProc.stdinEnabled = false
     }
     onExited: function(exitCode) {
-      if (exitCode !== 0) root.onCalendarError(exitCode)
+      root.onFeedExited(exitCode)
     }
   }
 
@@ -265,12 +331,19 @@ BarWidget {
 
   readonly property string tooltipLine: {
     if (!root.configured) return "NextEvent — No calendar configured\nClick to set up"
-    if (!root.nextMeeting) return "NextEvent — No upcoming events" + (root.lastFetchFailed ? " (offline)" : "")
+    if (!root.nextMeeting) {
+      if (root.lastFetchFailed) return "NextEvent — No upcoming events (offline)"
+      if (root.offlineFeedCount > 0)
+        return "NextEvent — No upcoming events · " + root.offlineFeedCount + " calendar" + (root.offlineFeedCount > 1 ? "s" : "") + " offline"
+      return "NextEvent — No upcoming events"
+    }
     var title = root.nextMeeting.title || "(Untitled)"
     var range = Model.timeRange(root.nextMeeting.start, root.nextMeeting.end)
     var status = Model.relativeStatus(root.nextMeeting, root.now)
     var line = title + " · " + range + (status ? " (" + status + ")" : "")
+    if (root.nextMeeting.feedLabel) line = root.nextMeeting.feedLabel + " · " + line
     if (root.lastFetchFailed) line += " · Offline"
+    else if (root.offlineFeedCount > 0) line += " · " + root.offlineFeedCount + " calendar" + (root.offlineFeedCount > 1 ? "s" : "") + " offline"
     return line
   }
 }

@@ -69,6 +69,33 @@ Set your calendar feed URL on the widget:
 omarchy bar set tobiasz-p.next-event icsUrl '<your-ics-feed-url>'
 ```
 
+### Multiple calendars
+
+`icsUrl` accepts more than one feed. Combine feeds with a comma, and optionally
+prefix each with a `label|` (pipe) so work/personal calendars are easy to tell
+apart — the label is shown as a small tag next to events:
+
+```sh
+omarchy bar set tobiasz-p.next-event icsUrl 'Work|https://…/work.ics,Personal|https://…/personal.ics'
+```
+
+A single unlabeled feed still works exactly as before:
+
+```sh
+omarchy bar set tobiasz-p.next-event icsUrl 'https://…/single.ics'
+```
+
+For URLs that themselves contain a comma or `|`, use a JSON array of objects
+instead (useful when editing `shell.json` directly):
+
+```json
+[{"url":"https://…/work.ics","label":"Work"},{"url":"https://…/personal.ics","label":"Personal"}]
+```
+
+The same event shared across feeds (same `UID`) is deduplicated. Feeds are
+fetched independently, so if one calendar is unreachable the others still load
+— the panel status shows how many are offline.
+
 ### Google Calendar Setup Example:
 1. Open Google Calendar → Settings → the calendar you want → "Integrate calendar"
 2. Copy the "Secret address in iCal format" URL
@@ -82,8 +109,8 @@ Available settings (`omarchy bar set <widget> <key> <value>`):
 
 | Key                   | Default | Description                                         |
 | --------------------- | ------- | --------------------------------------------------- |
-| `icsUrl`              | —       | Google Calendar private iCal URL (required)         |
-| `refreshMinutes`      | `5`     | How often to refetch the feed                       |
+| `icsUrl`              | —       | Calendar iCal feed(s), required. One URL, or a comma-separated list of `label\|url` feeds, or a JSON array of `{ url, label }` objects |
+| `refreshMinutes`      | `5`     | How often to refetch the feeds                      |
 | `showDaysAhead`       | `3`     | How many days ahead to list meetings                |
 | `maxTitleLength`      | `28`    | Bar label truncation length                         |
 | `showOnlyWithVideoLink` | `true` | Only show meetings that have a video link          |

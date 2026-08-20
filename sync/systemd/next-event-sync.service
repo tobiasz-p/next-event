@@ -1,0 +1,10 @@
+[Unit]
+Description=NextEvent Google Calendar Sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/omarchy/plugins/tobiasz-p.next-event/sync/next-event-sync
+Environment=NEXT_EVENT_PROFILE=%h/.config/gws-omarchy-calendar
+Environment=NEXT_EVENT_STATE_FILE=%h/.local/state/omarchy/calendar-events.json

@@ -1,0 +1,10 @@
+[Unit]
+Description=Periodic sync for NextEvent Google Calendar
+
+[Timer]
+OnBootSec=1m
+OnUnitActiveSec=5m
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

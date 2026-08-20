@@ -18,6 +18,9 @@ BarWidget {
 
   // ---- settings (shell.json layout entry, `omarchy bar set`)
   readonly property string icsUrl: String(setting("icsUrl", "") || "").trim()
+  readonly property string eventsJsonPath: String(setting("eventsJsonPath", (Quickshell.env("HOME") || "") + "/.local/state/omarchy/calendar-events.json") || "").trim()
+  readonly property var SourceMode: ({ ICS: "ics", JSON: "json" })
+  readonly property string sourceMode: icsUrl !== "" ? SourceMode.ICS : SourceMode.JSON
   readonly property int refreshMinutes: Math.max(1, parseInt(setting("refreshMinutes", 5), 10) || 5)
   readonly property int showDaysAhead: Math.max(1, parseInt(setting("showDaysAhead", 3), 10) || 3)
   readonly property int maxTitleLength: Math.max(8, parseInt(setting("maxTitleLength", 28), 10) || 28)
@@ -34,8 +37,15 @@ BarWidget {
   // account (matches the u/N in your browser's calendar URL).
   readonly property string calendarUrlBase: String(setting("calendarUrlBase", "https://calendar.google.com/calendar") || "").trim()
 
+  // ---- internal limits
+  readonly property int maxRawEvents: 80
+  readonly property int maxMeetingRows: 8
+  readonly property int maxScheduleRows: 20
+
   // ---- state
-  readonly property bool configured: icsUrl !== ""
+  property bool jsonLoaded: false
+  readonly property bool configured: (icsUrl !== "") || jsonLoaded || (rawEvents && rawEvents.length > 0)
+  onSourceModeChanged: { jsonLoaded = false }
   property var rawEvents: []
   property var meetings: []
   property var upcomingToday: []
@@ -43,7 +53,7 @@ BarWidget {
   property var nextMeeting: null
   property date lastUpdated: new Date(0)
   property bool lastFetchFailed: false
-  readonly property bool fetching: fetchProc.running
+  readonly property bool fetching: fetchProc.running || syncProc.running
   property date now: new Date()
 
   readonly property string label: configured && nextMeeting
@@ -81,14 +91,43 @@ BarWidget {
   // format"), so it must never appear in a process argument list where every
   // local user can read it. curl gets it over stdin as a `-K -` config line.
   function fetchCalendar() {
-    if (!root.configured || fetchProc.running) return
-    fetchProc.stdinEnabled = true
-    fetchProc.command = ["curl", "-fsSL", "--max-time", "15", "-K", "-"]
-    fetchProc.running = true
+    if (root.sourceMode === SourceMode.ICS) {
+      if (!root.configured || fetchProc.running) return
+      fetchProc.stdinEnabled = true
+      fetchProc.command = ["curl", "-fsSL", "--max-time", "15", "-K", "-"]
+      fetchProc.running = true
+    } else {
+      if (!syncProc.running) syncProc.running = true
+    }
   }
 
   function refresh() {
     fetchCalendar()
+  }
+
+  function onJsonData(raw) {
+    var text = String(raw || "").trim()
+    if (!text) return
+    var parsed = Model.parseJsonState(text, {
+      lookaheadDays: root.showDaysAhead + 1,
+      now: root.now
+    })
+    root.jsonLoaded = true
+    root.rawEvents = parsed.events
+    root.meetings = Model.buildUpcoming(root.rawEvents, root.now, {
+      lookaheadDays: root.showDaysAhead,
+      showOnlyWithVideoLink: root.showOnlyWithVideoLink,
+      maxRows: root.maxMeetingRows
+    })
+    root.upcomingToday = Model.upcomingToday(root.rawEvents, root.now)
+    root.scheduleGroups = Model.buildScheduleGroups(root.rawEvents, root.now, {
+      lookaheadDays: root.showDaysAhead,
+      maxRows: root.maxScheduleRows
+    })
+    root.nextMeeting = root.meetings.length > 0 ? root.meetings[0] : null
+    root.lastUpdated = parsed.syncedAt ? new Date(parsed.syncedAt) : new Date()
+    root.lastFetchFailed = false
+    root.meetingDataChanged()
   }
 
   function onCalendarData(raw) {
@@ -100,19 +139,19 @@ BarWidget {
     }
     var events = Model.parseIcs(text, {
       lookaheadDays: root.showDaysAhead + 1,
-      maxEvents: 80,
+      maxEvents: root.maxRawEvents,
       now: root.now
     })
     root.rawEvents = events
     root.meetings = Model.buildUpcoming(events, root.now, {
       lookaheadDays: root.showDaysAhead,
       showOnlyWithVideoLink: root.showOnlyWithVideoLink,
-      maxRows: 8
+      maxRows: root.maxMeetingRows
     })
     root.upcomingToday = Model.upcomingToday(events, root.now)
     root.scheduleGroups = Model.buildScheduleGroups(events, root.now, {
       lookaheadDays: root.showDaysAhead,
-      maxRows: 20
+      maxRows: root.maxScheduleRows
     })
     root.nextMeeting = root.meetings.length > 0 ? root.meetings[0] : null
     root.lastUpdated = new Date()
@@ -130,12 +169,12 @@ BarWidget {
       root.meetings = Model.buildUpcoming(root.rawEvents, root.now, {
         lookaheadDays: root.showDaysAhead,
         showOnlyWithVideoLink: root.showOnlyWithVideoLink,
-        maxRows: 8
+        maxRows: root.maxMeetingRows
       })
       root.upcomingToday = Model.upcomingToday(root.rawEvents, root.now)
       root.scheduleGroups = Model.buildScheduleGroups(root.rawEvents, root.now, {
         lookaheadDays: root.showDaysAhead,
-        maxRows: 20
+        maxRows: root.maxScheduleRows
       })
       root.nextMeeting = root.meetings.length > 0 ? root.meetings[0] : null
     } else {
@@ -209,6 +248,28 @@ BarWidget {
       root.now = new Date()
       root.recalc()
     }
+  }
+
+  FileView {
+    id: jsonFileView
+    path: root.sourceMode === SourceMode.JSON ? root.eventsJsonPath : ""
+    watchChanges: true
+    onTextChanged: root.onJsonData(text)
+    Component.onCompleted: if (root.sourceMode === SourceMode.JSON && text) root.onJsonData(text)
+  }
+
+
+  Process {
+    id: syncProc
+    command: [Qt.resolvedUrl("sync/next-event-sync").toString().replace("file://", "")]
+    onExited: function(exitCode) {
+      if (exitCode !== 0)
+        console.warn("next-event-sync exited with code", exitCode)
+    }
+  }
+
+  Component.onCompleted: {
+    Qt.callLater(root.fetchCalendar)
   }
 
   Process {

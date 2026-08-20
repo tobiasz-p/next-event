@@ -19,6 +19,7 @@ Panel {
   readonly property bool inMeeting: hostWidget ? hostWidget.inMeeting : false
   readonly property bool fetching: hostWidget ? hostWidget.fetching : false
   readonly property bool lastFetchFailed: hostWidget ? hostWidget.lastFetchFailed : false
+  readonly property int offlineFeedCount: hostWidget ? hostWidget.offlineFeedCount : 0
 
   property var scheduleGroups: []
   property var next: null
@@ -137,11 +138,13 @@ Panel {
               text: {
                 if (root.fetching) return "Updating…"
                 if (root.lastFetchFailed) return "Offline · Cached"
+                if (root.offlineFeedCount > 0)
+                  return root.offlineFeedCount + " calendar" + (root.offlineFeedCount > 1 ? "s" : "") + " offline · updated"
                 if (root.hostWidget && root.hostWidget.configured)
                   return Model.formatUpdated(root.hostWidget.lastUpdated, root.now)
                 return ""
               }
-              color: root.lastFetchFailed ? Color.urgent : Qt.darker(root.contentForeground, 1.5)
+              color: (root.lastFetchFailed || root.offlineFeedCount > 0) ? Color.urgent : Qt.darker(root.contentForeground, 1.5)
               font.family: root.contentFontFamily
               font.pixelSize: Style.font.caption
             }
@@ -280,6 +283,25 @@ Panel {
                   }
 
                   Item { Layout.fillWidth: true }
+
+                  Rectangle {
+                    id: heroTagPill
+                    visible: !!(root.next && root.next.feedLabel)
+                    Layout.alignment: Qt.AlignVCenter
+                    color: Qt.rgba(0.5, 0.5, 0.5, 0.18)
+                    radius: Style.cornerRadius * 0.5
+                    implicitWidth: heroTagText.implicitWidth + Style.space(10)
+                    implicitHeight: Style.space(16)
+
+                    Text {
+                      id: heroTagText
+                      anchors.centerIn: parent
+                      text: root.next ? root.next.feedLabel : ""
+                      color: root.inMeeting ? Color.accent : Qt.darker(root.contentForeground, 1.3)
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.caption
+                    }
+                  }
 
                   Text {
                     visible: !!root.next
@@ -485,6 +507,25 @@ Panel {
                             font.family: root.contentFontFamily
                             font.pixelSize: Style.font.bodySmall
                             font.bold: true
+                          }
+
+                          Rectangle {
+                            id: tagPill
+                            visible: !!meeting.feedLabel
+                            Layout.alignment: Qt.AlignVCenter
+                            color: Qt.rgba(0.5, 0.5, 0.5, 0.18)
+                            radius: Style.cornerRadius * 0.5
+                            implicitWidth: tagText.implicitWidth + Style.space(10)
+                            implicitHeight: Style.space(16)
+
+                            Text {
+                              id: tagText
+                              anchors.centerIn: parent
+                              text: meeting.feedLabel || ""
+                              color: Qt.darker(root.contentForeground, 1.25)
+                              font.family: root.contentFontFamily
+                              font.pixelSize: Style.font.caption
+                            }
                           }
 
                           Text {

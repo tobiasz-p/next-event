@@ -968,6 +968,86 @@ function formatUpdated(date, now) {
   return hm(date)
 }
 
+// --- multiple ICS feeds -----------------------------------------------------
+
+// Parse the icsUrl setting into a list of feeds: [{ url, label? }].
+//
+// Supported forms:
+//   * plain URL string                       -> [{ url }]
+//   * comma-separated string                 -> [{ url }, ...]
+//   * "label|url" per feed (comma-separated) -> [{ url, label }, ...]
+//   * JSON array (string or parsed QVariant) of strings or { url, label } objects
+//
+// A feed with no label gets `label` undefined so downstream renders it untagged.
+function splitIcsFeeds(raw) {
+  if (Array.isArray(raw)) return feedsFromArray(raw)
+
+  var s = String(raw == null ? "" : raw).trim()
+  if (!s) return []
+
+  if (s.charAt(0) === "[") {
+    try {
+      var parsed = JSON.parse(s)
+      if (Array.isArray(parsed)) return feedsFromArray(parsed)
+    } catch (e) {
+      // Not valid JSON after all — fall through to pipe/comma handling.
+    }
+  }
+
+  var parts = s.split(",")
+  var out = []
+  for (var i = 0; i < parts.length; i++) {
+    var p = parts[i].trim()
+    if (!p) continue
+    var bar = p.indexOf("|")
+    if (bar >= 0) {
+      out.push({ url: p.slice(bar + 1).trim(), label: p.slice(0, bar).trim() || undefined })
+    } else {
+      out.push({ url: p, label: undefined })
+    }
+  }
+  return out
+}
+
+function feedsFromArray(arr) {
+  var out = []
+  for (var i = 0; i < arr.length; i++) {
+    var item = arr[i]
+    if (item == null) continue
+    if (typeof item === "string") {
+      var s = item.trim()
+      if (!s) continue
+      var bar = s.indexOf("|")
+      if (bar >= 0) out.push({ url: s.slice(bar + 1).trim(), label: s.slice(0, bar).trim() || undefined })
+      else out.push({ url: s, label: undefined })
+    } else {
+      var url = String(item.url == null ? "" : item.url).trim()
+      if (!url) continue
+      var label = item.label == null ? undefined : String(item.label).trim() || undefined
+      out.push({ url: url, label: label })
+    }
+  }
+  return out
+}
+
+// Collapse the same physical event shared across multiple feeds while keeping
+// distinct occurrences of a recurring event (which share a uid but differ in
+// start). Keyed by uid + start time; first occurrence wins, so its feed label
+// is the one that survives.
+function dedupeEvents(events) {
+  if (!Array.isArray(events)) return events || []
+  var seen = {}
+  var out = []
+  for (var i = 0; i < events.length; i++) {
+    var e = events[i]
+    var key = (e.uid || "") + "@" + (e.start ? e.start.getTime() : 0)
+    if (seen[key]) continue
+    seen[key] = true
+    out.push(e)
+  }
+  return out
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     unfoldIcs: unfoldIcs,
@@ -992,6 +1072,8 @@ if (typeof module !== "undefined" && module.exports) {
     timeRange: timeRange,
     registerVTimezones: registerVTimezones,
     tzOffsetForWall: tzOffsetForWall,
-    zonedToUtc: zonedToUtc
+    zonedToUtc: zonedToUtc,
+    splitIcsFeeds: splitIcsFeeds,
+    dedupeEvents: dedupeEvents
   }
 }

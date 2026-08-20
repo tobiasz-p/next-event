@@ -19,15 +19,15 @@ upcoming event from your calendar with live countdowns and lets you join video c
 | :---: | :---: |
 | <img src="assets/empty.png" alt="Empty Schedule" width="380"><br><sub><b>Zero-state</b> when your schedule is clear</sub> | <img src="assets/schedule.png" alt="Full Schedule" width="380"><br><sub><b>Grouped agenda</b> across today, tomorrow, and future days</sub> |
 
-| Multi-Provider Video Links |
-| :---: |
-| <img src="assets/multi-provider.png" alt="Multi-Provider Video Links" width="380"><br><sub><b>Zoom, Teams, Webex, GoToMeeting</b> all get the video glyph and Join Meeting button</sub> |
-
+| Multi-Provider Video Links | Multiple Calendars |
+| :---: | :---: |
+| <img src="assets/multi-provider.png" alt="Multi-Provider Video Links" width="380"><br><sub><b>Zoom, Teams, Webex, GoToMeeting</b> all get the video glyph and Join Meeting button</sub> | <img src="assets/multi-ics.png" alt="Multiple Calendars" width="380"><br><sub>Work + Personal feeds with label tags and a deduplicated shared event</sub> |
 
 ## Features
 
 - **Theme Aware**: Fully syncs with your active Omarchy theme (colors, typography, borders, and corner rounding adapt automatically)
 - **Universal Calendar Support**: Works with standard `.ics` feeds from Google Calendar, Microsoft Outlook, Apple iCloud, Nextcloud, Proton, and custom URLs
+- **Multiple Calendars**: Combine several `.ics` feeds (e.g. work + personal) into one widget. Give each feed a `label|` name so events carry a small tag, shared events are deduplicated, and one offline calendar doesn't hide the rest
 - **Bar Widget**: Shows the next event with live countdown (`Daily in 15 min`, `Daily · 15 min left`, `Daily · 14:00`, `Daily · Tmrw 14:00`, `Daily · Wed 14:00`)
 - **Quick Join**: Click to open the agenda panel; single click on "Join Meeting" opens the video link (Google Meet, Zoom, Teams, Webex, GoToMeeting) in your default browser
 - **Instant Actions**: Right-click on the bar widget to join the next meeting immediately; middle-click to force-refresh

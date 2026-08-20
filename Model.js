@@ -409,9 +409,30 @@ function expandOccurrences(startKey, tzInfo, rule, fromKey, lookaheadDays, maxOc
 
 // --- event block parsing ---------------------------------------------------
 
+var VIDEO_PROVIDERS = [
+  { re: /https:\/\/meet\.google\.com\/[a-z0-9][a-z0-9-]*/, label: "Meet" },
+  { re: /https?:\/\/(?:[\w-]+\.)?zoom\.us\/(?:j|w)\/\d+(?:\?[^\s]*)*/, label: "Video" },
+  { re: /https?:\/\/(?:teams\.microsoft\.com|teams\.live\.com)\/(?:l\/meetup-join|meet|dl\/launcher)\/[^\s]*/, label: "Video" },
+  { re: /https?:\/\/(?:[\w-]+\.)?webex\.com\/(?:meet|j\.php)[^\s]*/, label: "Video" },
+  { re: /https?:\/\/(?:[\w-]+\.)?gotomeeting\.com\/join\/\d+/, label: "Video" },
+]
+
 function findMeetUrl(text) {
-  var m = /https:\/\/meet\.google\.com\/[a-z0-9][a-z0-9-]*/.exec(String(text || ""))
-  return m ? m[0] : null
+  var s = String(text || "")
+  for (var i = 0; i < VIDEO_PROVIDERS.length; i++) {
+    var m = VIDEO_PROVIDERS[i].re.exec(s)
+    if (m) return m[0]
+  }
+  return null
+}
+
+function meetLabel(url) {
+  if (!url) return "Video"
+  var s = String(url)
+  for (var i = 0; i < VIDEO_PROVIDERS.length; i++) {
+    if (VIDEO_PROVIDERS[i].re.test(s)) return VIDEO_PROVIDERS[i].label
+  }
+  return "Video"
 }
 
 function parseEventBlock(block) {
@@ -799,6 +820,8 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     unfoldIcs: unfoldIcs,
     unescapeIcs: unescapeIcs,
+    findMeetUrl: findMeetUrl,
+    meetLabel: meetLabel,
     parseRfcDate: parseRfcDate,
     parseRRule: parseRRule,
     parseIcs: parseIcs,

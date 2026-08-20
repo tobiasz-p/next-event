@@ -287,7 +287,7 @@ Panel {
                       var parts = []
                       var dur = root.next ? Model.formatDuration(root.next.start, root.next.end) : ""
                       if (dur) parts.push(dur)
-                      if (root.next) parts.push(root.next.meetUrl ? "  Meet" : "󰃯  Event")
+                      if (root.next) parts.push(root.next.meetUrl ? "  " + Model.meetLabel(root.next.meetUrl) : "󰃯  Event")
                       return parts.join("  ·  ")
                     }
                     color: root.inMeeting ? Color.accent : Qt.darker(root.contentForeground, 1.4)

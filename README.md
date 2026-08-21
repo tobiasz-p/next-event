@@ -1,7 +1,7 @@
 # NextEvent
 
 Next event, right in the bar — native to your Omarchy shell. Shows the next
-upcoming event from your calendar with live countdowns and lets you join Google Meet calls with a single click.
+upcoming event from your calendar with live countdowns and lets you join video calls (Google Meet, Zoom, Teams, Webex, GoToMeeting) with a single click.
 
 <p align="center">
   <img src="preview.png" alt="NextEvent Overview" width="560">
@@ -19,12 +19,17 @@ upcoming event from your calendar with live countdowns and lets you join Google 
 | :---: | :---: |
 | <img src="assets/empty.png" alt="Empty Schedule" width="380"><br><sub><b>Zero-state</b> when your schedule is clear</sub> | <img src="assets/schedule.png" alt="Full Schedule" width="380"><br><sub><b>Grouped agenda</b> across today, tomorrow, and future days</sub> |
 
+| Multi-Provider Video Links |
+| :---: |
+| <img src="assets/multi-provider.png" alt="Multi-Provider Video Links" width="380"><br><sub><b>Zoom, Teams, Webex, GoToMeeting</b> all get the video glyph and Join Meeting button</sub> |
+
+
 ## Features
 
 - **Theme Aware**: Fully syncs with your active Omarchy theme (colors, typography, borders, and corner rounding adapt automatically)
 - **Universal Calendar Support**: Works with standard `.ics` feeds from Google Calendar, Microsoft Outlook, Apple iCloud, Nextcloud, Proton, and custom URLs
 - **Bar Widget**: Shows the next event with live countdown (`Daily in 15 min`, `Daily · 15 min left`, `Daily · 14:00`, `Daily · Tmrw 14:00`, `Daily · Wed 14:00`)
-- **Quick Join**: Click to open the agenda panel; single click on "Join Meeting" opens the Google Meet link in your default browser
+- **Quick Join**: Click to open the agenda panel; single click on "Join Meeting" opens the video link (Google Meet, Zoom, Teams, Webex, GoToMeeting) in your default browser
 - **Instant Actions**: Right-click on the bar widget to join the next meeting immediately; middle-click to force-refresh
 - **Repeating Events**: Automatically expands repeating events (daily standups, weekly meetings) and respects cancelled or rescheduled instances
 - **Live Updates**: Automatic background sync every few minutes, with a 30-second reactive countdown timer

@@ -1,0 +1,8 @@
+{
+  "name": "next-event",
+  "private": true,
+  "description": "omarchy bar widget showing the next calendar event",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  }
+}

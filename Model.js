@@ -979,6 +979,15 @@ function formatUpdated(date, now) {
 //   * JSON array (string or parsed QVariant) of strings or { url, label } objects
 //
 // A feed with no label gets `label` undefined so downstream renders it untagged.
+// Normalize a user-supplied single-key shortcut: trim, lowercase, accept
+// exactly one alphanumeric character, else fall back. Arrows and the shell
+// key catcher's reserved keys (j/k/h/l, Tab, Enter, Space, Escape) never
+// reach text handlers, but a reserved letter here would be dead config.
+function normalizeKey(value, fallback) {
+  var s = String(value == null ? "" : value).trim().toLowerCase()
+  return /^[a-z0-9]$/.test(s) ? s : fallback
+}
+
 function splitIcsFeeds(raw) {
   if (Array.isArray(raw)) return feedsFromArray(raw)
 
@@ -1074,6 +1083,7 @@ if (typeof module !== "undefined" && module.exports) {
     tzOffsetForWall: tzOffsetForWall,
     zonedToUtc: zonedToUtc,
     splitIcsFeeds: splitIcsFeeds,
+    normalizeKey: normalizeKey,
     dedupeEvents: dedupeEvents
   }
 }

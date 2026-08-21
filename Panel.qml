@@ -58,13 +58,19 @@ Panel {
     heroItem.visible = configured && !!root.next
     emptyItem.visible = configured && root.scheduleGroups.length === 0
     scheduleItem.visible = configured && root.scheduleGroups.length > 0
+    root.rebuildActionItems()
   }
 
+  // Join / open-in-calendar hand off to the browser, so dismiss the panel
+  // first — regardless of whether the trigger was a click, Enter, or the
+  // m/o shortcut keys.
   function join(event) {
+    root.close()
     if (root.hostWidget && event) root.hostWidget.openEvent(event)
   }
 
   function openInCalendar(event) {
+    root.close()
     if (root.hostWidget && event) root.hostWidget.openCalendar(event)
   }
 
@@ -72,9 +78,95 @@ Panel {
     if (root.hostWidget) root.hostWidget.refresh()
   }
 
+  // ---- keyboard navigation ----
+  // Flat cursor over actionable rows in visual order: refresh, hero
+  // actions, then schedule rows. Fed by PanelKeyCatcher signals; keys
+  // only reach this panel while it holds Wayland keyboard focus, so
+  // nothing here shadows compositor-level omarchy bindings.
+  property var actionItems: []
+  property int cursorIndex: -1
+  property bool cursorActive: false
+
+  function rebuildActionItems() {
+    var items = [{ kind: "refresh" }]
+    if (heroItem.visible && root.next && root.next.meetUrl) items.push({ kind: "join" })
+    if (heroItem.visible) items.push({ kind: "calendar" })
+    for (var g = 0; g < root.scheduleGroups.length; g++) {
+      var rows = root.scheduleGroups[g].items || []
+      for (var r = 0; r < rows.length; r++) items.push({ kind: "event", groupIndex: g, rowIndex: r })
+    }
+    root.actionItems = items
+    if (root.cursorIndex >= items.length) root.cursorIndex = items.length - 1
+  }
+
+  function moveCursor(delta) {
+    if (root.actionItems.length === 0) return
+    if (!root.cursorActive) {
+      root.cursorActive = true
+      root.cursorIndex = delta > 0 ? 0 : root.actionItems.length - 1
+    } else {
+      root.cursorIndex = Math.max(0, Math.min(root.actionItems.length - 1, root.cursorIndex + delta))
+    }
+    root.ensureCursorVisible()
+  }
+
+  function activateCursor() {
+    if (!root.cursorActive || root.cursorIndex < 0 || root.cursorIndex >= root.actionItems.length) return
+    var it = root.actionItems[root.cursorIndex]
+    if (it.kind === "refresh") root.refreshNow()
+    else if (it.kind === "join") root.join(root.next)
+    else if (it.kind === "calendar") root.openInCalendar(root.next)
+    else if (it.kind === "event") {
+      var group = root.scheduleGroups[it.groupIndex]
+      if (group) root.join(group.items[it.rowIndex])
+    }
+  }
+
+  function cursorOn(kind, groupIndex, rowIndex) {
+    if (!root.cursorActive || root.cursorIndex < 0 || root.cursorIndex >= root.actionItems.length) return false
+    var it = root.actionItems[root.cursorIndex]
+    if (it.kind !== kind) return false
+    return groupIndex === undefined || (it.groupIndex === groupIndex && it.rowIndex === rowIndex)
+  }
+
+  // Mouse hover joins the same single-cursor model: hovering an actionable
+  // item moves the cursor onto it, so exactly one highlight shows at a time.
+  function pointCursorAt(kind, groupIndex, rowIndex) {
+    for (var i = 0; i < root.actionItems.length; i++) {
+      var it = root.actionItems[i]
+      if (it.kind !== kind) continue
+      if (groupIndex === undefined || (it.groupIndex === groupIndex && it.rowIndex === rowIndex)) {
+        root.cursorActive = true
+        root.cursorIndex = i
+        return
+      }
+    }
+  }
+
+  function ensureCursorVisible() {
+    if (!root.cursorActive || root.cursorIndex < 0 || root.cursorIndex >= root.actionItems.length) return
+    var it = root.actionItems[root.cursorIndex]
+    var target = null
+    if (it.kind === "refresh") target = refreshBtn
+    else if (it.kind === "join") target = joinBtn
+    else if (it.kind === "calendar") target = openCalendarBtn
+    else {
+      var group = groupRepeater.itemAt(it.groupIndex)
+      target = group ? group.rowAt(it.rowIndex) : null
+    }
+    if (!target) return
+    var top = target.mapToItem(contentColumn, 0, 0).y
+    var bottom = top + target.height
+    if (top < scroll.contentY) scroll.contentY = Math.max(0, top)
+    else if (bottom > scroll.contentY + scroll.height) scroll.contentY = bottom - scroll.height
+  }
+
   onHostWidgetChanged: Qt.callLater(root.reload)
 
-  onOpenedChanged: if (opened) root.reload()
+  onOpenedChanged: {
+    if (opened) root.reload()
+    else root.cursorActive = false
+  }
 
   Connections {
     target: root.hostWidget
@@ -96,6 +188,14 @@ Panel {
       anchors.fill: parent
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
+      onMoveRequested: function(dx, dy) { if (dy !== 0) root.moveCursor(dy) }
+      onActivateRequested: root.activateCursor()
+      onTextKey: function(t) {
+        if (!root.hostWidget) return
+        if (t === root.hostWidget.keyRefresh) root.refreshNow()
+        else if (t === root.hostWidget.keyJoin && root.next && root.next.meetUrl) root.join(root.next)
+        else if (t === root.hostWidget.keyCalendar && root.next) root.openInCalendar(root.next)
+      }
 
       Flickable {
         id: scroll
@@ -159,6 +259,8 @@ Panel {
               fontFamily: root.contentFontFamily
               enabled: !root.fetching
               opacity: root.fetching ? 0.6 : 1.0
+              hasCursor: root.cursorOn("refresh")
+              onHovered: function(isHovered) { if (isHovered) root.pointCursorAt("refresh") }
               onClicked: root.refreshNow()
             }
           }
@@ -358,6 +460,8 @@ Panel {
                     iconSize: Style.font.bodySmall
                     horizontalPadding: Style.space(12)
                     verticalPadding: Style.space(7)
+                    hasCursor: root.cursorOn("join")
+                    onHovered: function(isHovered) { if (isHovered) root.pointCursorAt("join") }
                     onClicked: root.join(root.next)
                   }
 
@@ -374,6 +478,8 @@ Panel {
                     iconSize: Style.font.bodySmall
                     horizontalPadding: Style.space(12)
                     verticalPadding: Style.space(7)
+                    hasCursor: root.cursorOn("calendar")
+                    onHovered: function(isHovered) { if (isHovered) root.pointCursorAt("calendar") }
                     onClicked: root.openInCalendar(root.next)
                   }
                 }
@@ -444,6 +550,8 @@ Panel {
                   required property int index
                   readonly property var group: modelData
 
+                  function rowAt(rowIndex) { return eventRepeater.itemAt(rowIndex) }
+
                   width: parent.width
                   height: groupColumn.implicitHeight
                   implicitHeight: height
@@ -470,23 +578,24 @@ Panel {
                       id: eventRepeater
                       model: groupItem.group.items
 
-                      Rectangle {
+                      CursorSurface {
                         id: eventRow
+                        required property int index
                         required property var modelData
                         readonly property var meeting: modelData
 
                         width: parent.width
-                        radius: Style.cornerRadius
-                        color: rowMouse.containsMouse
-                          ? Style.hoverFillFor(root.contentForeground, Color.accent)
-                          : "transparent"
                         implicitHeight: Math.max(Style.space(32), rowLayout.implicitHeight + Style.space(8))
+                        hasCursor: root.cursorOn("event", groupItem.index, index)
+                        foreground: root.contentForeground
+                        accent: Color.accent
 
                         MouseArea {
                           id: rowMouse
                           anchors.fill: parent
                           hoverEnabled: true
                           cursorShape: Qt.PointingHandCursor
+                          onEntered: root.pointCursorAt("event", groupItem.index, index)
                           onClicked: root.join(meeting)
                         }
 

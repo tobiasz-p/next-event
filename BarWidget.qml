@@ -35,6 +35,12 @@ BarWidget {
   // e.g. "https://calendar.google.com/calendar/u/2" to open a specific
   // account (matches the u/N in your browser's calendar URL).
   readonly property string calendarUrlBase: String(setting("calendarUrlBase", "https://calendar.google.com/calendar") || "").trim()
+  // Single-key panel shortcuts (text keys while the panel is focused).
+  // Arrows and j/k/h/l are reserved by the shell's key catcher for
+  // navigation, so those letters would be dead config here.
+  readonly property string keyRefresh: Model.normalizeKey(setting("keyRefresh", "r"), "r")
+  readonly property string keyJoin: Model.normalizeKey(setting("keyJoin", "m"), "m")
+  readonly property string keyCalendar: Model.normalizeKey(setting("keyCalendar", "o"), "o")
 
   // ---- state
   readonly property bool configured: icsFeeds.length > 0

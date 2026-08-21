@@ -31,6 +31,8 @@ upcoming event from your calendar with live countdowns and lets you join video c
 - **Bar Widget**: Shows the next event with live countdown (`Daily in 15 min`, `Daily · 15 min left`, `Daily · 14:00`, `Daily · Tmrw 14:00`, `Daily · Wed 14:00`)
 - **Quick Join**: Click to open the agenda panel; single click on "Join Meeting" opens the video link (Google Meet, Zoom, Teams, Webex, GoToMeeting) in your default browser
 - **Instant Actions**: Right-click on the bar widget to join the next meeting immediately; middle-click to force-refresh
+- **Keyboard Navigation**: With the agenda panel open, `↑`/`↓` (or `j`/`k`) move through the refresh button, hero actions, and event rows, `Enter`/`Space` activates, `r` refreshes, `m` joins the next meeting, `o` opens it in the calendar, `Tab`/`Shift+Tab` switch panels, `Escape` closes — all scoped to the focused panel so no Omarchy keybinding is ever shadowed
+- **Summon Keybinding**: Bind a global key to open the agenda panel (see [Opening the panel from the keyboard](#opening-the-panel-from-the-keyboard))
 - **Repeating Events**: Automatically expands repeating events (daily standups, weekly meetings) and respects cancelled or rescheduled instances
 - **Live Updates**: Automatic background sync every few minutes, with a 30-second reactive countdown timer
 
@@ -116,6 +118,40 @@ Available settings (`omarchy bar set <widget> <key> <value>`):
 | `showOnlyWithVideoLink` | `true` | Only show meetings that have a video link          |
 | `browserCommand`      | `""`    | Command used to open the Meet URL (`xdg-open` by default) |
 | `calendarUrlBase`     | `"https://calendar.google.com/calendar"` | Base URL for "Open in Calendar" (opens `/r` route; set e.g. `https://calendar.google.com/calendar/u/1` for multi-account) |
+| `keyRefresh`          | `r`     | Panel key that force-refreshes the feeds            |
+| `keyJoin`             | `m`     | Panel key that joins the next meeting               |
+| `keyCalendar`         | `o`     | Panel key that opens the next meeting in the calendar |
+
+Keys must be a single letter or digit. Arrows and `j`/`k`/`h`/`l` are reserved
+for panel navigation and cannot be rebound.
+
+## Opening the panel from the keyboard
+
+The panel opens by clicking the bar widget, but you can bind a global key to
+it. Add this to `~/.config/hypr/bindings.lua` (pick any combo you like —
+`SUPER + CTRL + M` is free in the default Omarchy config):
+
+```lua
+o.bind("SUPER + CTRL + M", "Next event", "omarchy-shell shell toggle tobiasz-p.next-event")
+```
+
+### Panel keyboard shortcuts
+
+While the agenda panel is open it grabs the keyboard, so these never clash
+with your applications or Omarchy bindings:
+
+| Key                  | Action                                              |
+| -------------------- | --------------------------------------------------- |
+| `↑` / `↓` or `j`/`k` | Move through refresh button, hero actions, event rows |
+| `Enter` / `Space`    | Activate the highlighted item                       |
+| `r`                  | Refresh feeds now (`keyRefresh`)                    |
+| `m`                  | Join the next meeting (`keyJoin`)                   |
+| `o`                  | Open the next meeting in the calendar (`keyCalendar`) |
+| `Tab` / `Shift+Tab`  | Switch to the previous/next bar panel               |
+| `Escape`             | Close the panel                                     |
+
+Joining and opening the calendar dismiss the panel as they hand off to the
+browser; refreshing keeps it open.
 
 ## Privacy
 

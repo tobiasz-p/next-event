@@ -562,17 +562,32 @@ function expandOccurrences(startKey, tzInfo, rule, fromKey, lookaheadDays, maxOc
 
 var VIDEO_PROVIDERS = [
   { re: /https:\/\/meet\.google\.com\/[a-z0-9][a-z0-9-]*/, label: "Meet" },
-  { re: /https?:\/\/(?:[\w-]+\.)?zoom\.us\/(?:j|w)\/\d+(?:\?[^\s]*)*/, label: "Video" },
-  { re: /https?:\/\/(?:teams\.microsoft\.com|teams\.live\.com)\/(?:l\/meetup-join|meet|dl\/launcher)\/[^\s]*/, label: "Video" },
-  { re: /https?:\/\/(?:[\w-]+\.)?webex\.com\/(?:meet|j\.php)[^\s]*/, label: "Video" },
-  { re: /https?:\/\/(?:[\w-]+\.)?gotomeeting\.com\/join\/\d+/, label: "Video" },
+  // Vanity subdomains (us02web., <company>.), /j/ meetings, /w/ and /s/ webinars,
+  // /my/ personal rooms, on both the commercial domain and Zoom for Government.
+  { re: /https?:\/\/(?:[\w-]+\.)*(?:zoom\.us|zoomgov\.com)\/(?:j|w|s|my)\/[^\s"'<>]+/, label: "Video" },
+  // Commercial, personal (teams.live.com) and government (GCC High / DoD, on
+  // teams.microsoft.us) tenants. Paths stay restricted: an Outlook invite body
+  // also links teams.microsoft.com/meetingOptions/… below the join link, so a
+  // domain-only match would join the settings page.
+  { re: /https?:\/\/(?:teams\.microsoft\.com|teams\.live\.com|(?:[\w-]+\.)?teams\.microsoft\.us)\/(?:l\/meetup-join|l\/meeting|meet|dl\/launcher)\/[^\s"'<>]+/, label: "Video" },
+  // Personal rooms (/meet/, /join/) and the hosted-site form,
+  // <company>.webex.com/<site>/j.php?MTID=… — the site segment sits before j.php.
+  { re: /https?:\/\/(?:[\w-]+\.)*webex\.com\/(?:meet\/|join\/|[^\s"'<>]*j\.php\?)[^\s"'<>]+/, label: "Video" },
+  // meet.goto.com and gotomeet.me host nothing but meetings, so any path will do.
+  // gotomeeting.com also serves marketing pages, hence /join/.
+  { re: /https?:\/\/(?:(?:meet\.goto\.com|(?:www\.)?gotomeet\.me)\/[^\s"'<>]+|(?:[\w-]+\.)*gotomeeting\.com\/join\/[^\s"'<>]+)/, label: "Video" },
 ]
+
+// Sentence punctuation trailing a URL belongs to the prose, not the link.
+function trimUrlPunctuation(url) {
+  return String(url || "").replace(/[.,;:!?)\]]+$/, "")
+}
 
 function findMeetUrl(text) {
   var s = String(text || "")
   for (var i = 0; i < VIDEO_PROVIDERS.length; i++) {
     var m = VIDEO_PROVIDERS[i].re.exec(s)
-    if (m) return m[0]
+    if (m) return trimUrlPunctuation(m[0])
   }
   return null
 }

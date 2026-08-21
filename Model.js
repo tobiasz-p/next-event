@@ -647,7 +647,13 @@ function parseEventBlock(block) {
     else if (name === "RRULE") ev.rrule = parseRRule(value)
     else if (name === "LOCATION") ev.location = unescapeIcs(value)
     else if (name === "DESCRIPTION") ev.description = unescapeIcs(value)
-    else if (name === "X-GOOGLE-CONFERENCE") ev.xConference = value.trim()
+    // Vendor properties carrying a join link directly. Outlook/Exchange emits the
+    // Teams one, which beats scraping it back out of the description.
+    else if (name === "X-GOOGLE-CONFERENCE" || name === "X-MICROSOFT-SKYPETEAMSMEETINGURL")
+      ev.xConference = (ev.xConference ? ev.xConference + " " : "") + value.trim()
+    // RFC 7986 CONFERENCE — where Outlook, Nextcloud, Proton and other non-Google
+    // feeds put the join link. An event may carry several (video, phone).
+    else if (name === "CONFERENCE") ev.conference = (ev.conference ? ev.conference + " " : "") + value.trim()
     else if (name === "EXDATE") {
       var parts = value.split(",")
       for (var j = 0; j < parts.length; j++) {
@@ -659,7 +665,7 @@ function parseEventBlock(block) {
 
   if (!ev.uid || !ev.start) return null
 
-  ev.meetUrl = findMeetUrl((ev.location || "") + " " + (ev.description || "") + " " + (ev.xConference || ""))
+  ev.meetUrl = findMeetUrl((ev.location || "") + " " + (ev.description || "") + " " + (ev.xConference || "") + " " + (ev.conference || ""))
   if (ev.end && ev.end.getTime() > ev.start.getTime()) {
     ev.durationMs = ev.end.getTime() - ev.start.getTime()
   } else {

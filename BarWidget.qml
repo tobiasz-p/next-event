@@ -131,7 +131,7 @@ BarWidget {
       return
     }
     fetchProc.stdinEnabled = true
-    fetchProc.command = ["curl", "-fsSL", "--max-time", "15", "-K", "-"]
+    fetchProc.command = ["curl", "-fsSL", "--max-time", "15", "--max-filesize", "1048576", "-K", "-"]
     fetchProc.running = true
   }
 

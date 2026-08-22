@@ -187,6 +187,26 @@ External contributors need to fork the repository first (as only maintainers hav
    ```
 6. **Open a Pull Request**: Go to the GitHub repository and submit a PR from your branch against `upstream/main` with a clear description of the changes.
 
+### Running tests
+
+`Model.js` is pure JavaScript with no Qt or Quickshell imports, so it runs under
+Node directly. The suite uses Node's built-in test runner and has no
+dependencies — there is nothing to install:
+
+```sh
+npm test                                  # every suite in test/
+node --test test/meeting-links.test.js    # a single suite while iterating
+```
+
+Tests cover `Model.js` only. The QML layer (`BarWidget.qml`, `Panel.qml`) has no
+automated coverage, so check UI changes by hand in your Omarchy environment. No
+lint, formatter, or typecheck is configured.
+
+When adding to `Model.js`, keep every function top-level and leave the
+`module.exports` guard at the bottom of the file: QML does
+`import "Model.js" as Model` while Node does `require("./Model.js")`, and that
+guard is what keeps both working.
+
 ### Commit Guidelines
 
 We follow [Conventional Commits](https://www.conventionalcommits.org/). Write concise, descriptive commit messages in the imperative mood:

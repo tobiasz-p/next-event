@@ -16,6 +16,24 @@ lets you click to join Google Meet. NOT a Node app — the runtime is QML.
 - TZID table (`TZ_TABLE`) is reset at the start of every `parseIcs`/`registerVTimezones`. A feed that drops a zone must not resolve against stale data; don't make the table accumulate across parses.
 - Keep Model.js dependency-free (pure). The QML sandbox cannot load npm packages; runtime deps are not possible.
 
+## Tests
+
+```sh
+npm test          # node --test "test/*.test.js"
+```
+
+One suite: `test/meeting-links.test.js`. It covers the `VIDEO_PROVIDERS` table,
+`findMeetUrl`, `meetLabel`, and every ICS property a join link can arrive in
+(`LOCATION`, `DESCRIPTION`, `CONFERENCE`, `X-GOOGLE-CONFERENCE`,
+`X-MICROSOFT-SKYPETEAMSMEETINGURL`). Several fixtures are modelled on real
+Outlook, Webex and GoTo invite bodies with identifiers replaced — the decoy
+links they carry (`meetingOptions`, dial-in helpers, Teams/Webex interop) are
+why the provider patterns restrict paths instead of matching on host alone.
+Add new meeting-link cases to this file using the existing `feed()`/`parseOne()`
+helpers. No lint, formatter, or typecheck is configured.
+
+Tests cover Model.js only; the QML layer has no automated coverage.
+
 ## Workflow conventions
 
 - Contributions follow Conventional Commits (`feat:`, `fix:`, `docs:`, ...) and a strictly linear history (rebase, no merge commits). See README's Contributing section.

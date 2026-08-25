@@ -23,6 +23,7 @@ BarWidget {
   readonly property int refreshMinutes: Math.max(1, parseInt(setting("refreshMinutes", 5), 10) || 5)
   readonly property int showDaysAhead: Math.max(1, parseInt(setting("showDaysAhead", 3), 10) || 3)
   readonly property int maxTitleLength: Math.max(8, parseInt(setting("maxTitleLength", 28), 10) || 28)
+  readonly property int maxFeedSizeMiB: Math.max(1, parseInt(setting("maxFeedSizeMiB", 10), 10) || 10)
   readonly property bool showOnlyWithVideoLink: {
     var v = setting("showOnlyWithVideoLink", true)
     if (v === undefined || v === null) return true
@@ -131,7 +132,7 @@ BarWidget {
       return
     }
     fetchProc.stdinEnabled = true
-    fetchProc.command = ["curl", "-fsSL", "--max-time", "15", "--max-filesize", "1048576", "-K", "-"]
+    fetchProc.command = ["curl", "-fsSL", "--max-time", "15", "--max-filesize", String(root.maxFeedSizeMiB * 1024 * 1024), "-K", "-"]
     fetchProc.running = true
   }
 

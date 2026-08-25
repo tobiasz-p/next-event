@@ -115,6 +115,7 @@ Available settings (`omarchy bar set <widget> <key> <value>`):
 | `refreshMinutes`      | `5`     | How often to refetch the feeds                      |
 | `showDaysAhead`       | `3`     | How many days ahead to list meetings                |
 | `maxTitleLength`      | `28`    | Bar label truncation length                         |
+| `maxFeedSizeMiB`      | `10`    | Maximum size of each downloaded calendar feed (MiB) |
 | `showOnlyWithVideoLink` | `true` | Only show meetings that have a video link          |
 | `browserCommand`      | `""`    | Command used to open the Meet URL (`xdg-open` by default) |
 | `calendarUrlBase`     | `"https://calendar.google.com/calendar"` | Base URL for "Open in Calendar" (opens `/r` route; set e.g. `https://calendar.google.com/calendar/u/1` for multi-account) |
@@ -219,4 +220,3 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/). Write co
 ## License
 
 MIT
-

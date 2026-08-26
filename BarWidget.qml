@@ -23,6 +23,8 @@ BarWidget {
   readonly property int refreshMinutes: Math.max(1, parseInt(setting("refreshMinutes", 5), 10) || 5)
   readonly property int showDaysAhead: Math.max(1, parseInt(setting("showDaysAhead", 3), 10) || 3)
   readonly property int maxTitleLength: Math.max(8, parseInt(setting("maxTitleLength", 28), 10) || 28)
+  // Opt-in to AM/PM; 24-hour output remains the default for compatibility.
+  readonly property bool use12Hour: String(setting("timeFormat", "24")).toLowerCase() === "12"
   readonly property int maxFeedSizeMiB: Math.max(1, parseInt(setting("maxFeedSizeMiB", 10), 10) || 10)
   readonly property bool showOnlyWithVideoLink: {
     var v = setting("showOnlyWithVideoLink", true)
@@ -67,7 +69,7 @@ BarWidget {
   property string feedOutput: ""
 
   readonly property string label: configured && nextMeeting
-    ? (nextMeeting.meetUrl ? "  " : "󰃯  ") + Model.formatLabel(nextMeeting, root.now, maxTitleLength)
+    ? (nextMeeting.meetUrl ? "  " : "󰃯  ") + Model.formatLabel(nextMeeting, root.now, maxTitleLength, root.use12Hour)
     : ""
   readonly property bool inMeeting: nextMeeting
     && nextMeeting.start && nextMeeting.end
@@ -345,8 +347,8 @@ BarWidget {
       return "NextEvent — No upcoming events"
     }
     var title = root.nextMeeting.title || "(Untitled)"
-    var range = Model.timeRange(root.nextMeeting.start, root.nextMeeting.end)
-    var status = Model.relativeStatus(root.nextMeeting, root.now)
+    var range = Model.timeRange(root.nextMeeting.start, root.nextMeeting.end, root.use12Hour)
+    var status = Model.relativeStatus(root.nextMeeting, root.now, root.use12Hour)
     var line = title + " · " + range + (status ? " (" + status + ")" : "")
     if (root.nextMeeting.feedLabel) line = root.nextMeeting.feedLabel + " · " + line
     if (root.lastFetchFailed) line += " · Offline"

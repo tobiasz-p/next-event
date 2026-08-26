@@ -766,20 +766,27 @@ function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
 
-function hm(date) {
-  return pad2(date.getHours()) + ":" + pad2(date.getMinutes())
+// Explicit formatting keeps this compatible with QML V4 (which has no Intl).
+// The default remains the historic 24-hour display.
+function hm(date, use12Hour) {
+  var hour = date.getHours()
+  if (use12Hour === true) {
+    var suffix = hour >= 12 ? "PM" : "AM"
+    var displayHour = hour % 12
+    if (displayHour === 0) displayHour = 12
+    return displayHour + ":" + pad2(date.getMinutes()) + " " + suffix
+  }
+  return pad2(hour) + ":" + pad2(date.getMinutes())
 }
 
-function shortStart(date) {
-  return hm(date)
-}
+function shortStart(date, use12Hour) { return hm(date, use12Hour) }
 
-function timeRange(start, end) {
+function timeRange(start, end, use12Hour) {
   if (!start) return ""
-  return hm(start) + "–" + hm(end)
+  return hm(start, use12Hour) + "–" + hm(end, use12Hour)
 }
 
-function meetingTimeLabel(start, end, now) {
+function meetingTimeLabel(start, end, now, use12Hour) {
   var labels = []
   if (isSameDay(start, now)) labels.push("Today")
   else if (isSameDay(start, new Date(now.getTime() + 86400000))) labels.push("Tomorrow")
@@ -788,18 +795,18 @@ function meetingTimeLabel(start, end, now) {
     var mo = MONTH_NAMES_SHORT[start.getMonth()]
     labels.push(dow + " " + start.getDate() + " " + mo)
   }
-  if (start && end) labels.push(timeRange(start, end))
+  if (start && end) labels.push(timeRange(start, end, use12Hour))
   return labels.join(" · ")
 }
 
-function relativeStatus(next, now) {
+function relativeStatus(next, now, use12Hour) {
   if (!next || !next.start || !next.end) return ""
   var start = next.start.getTime()
   var end = next.end.getTime()
   var t = now.getTime()
   if (t < start) {
     var mins = Math.max(1, Math.round((start - t) / 60000))
-    return mins >= 60 ? "starts at " + hm(next.start) : "starts in " + mins + " min"
+    return mins >= 60 ? "starts at " + hm(next.start, use12Hour) : "starts in " + mins + " min"
   }
   if (t < end) {
     var left = Math.max(1, Math.round((end - t) / 60000))
@@ -828,7 +835,7 @@ function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
 }
 
-function formatLabel(next, now, maxTitleLength) {
+function formatLabel(next, now, maxTitleLength, use12Hour) {
   if (!next || !next.start) return ""
   var title = String(next.title || "(Untitled)")
   var limit = Math.max(8, parseInt(maxTitleLength, 10) || 28)
@@ -851,8 +858,8 @@ function formatLabel(next, now, maxTitleLength) {
     var mins = Math.max(1, Math.round((start - t) / 60000))
     suffix = mins <= 1 ? " · in a min" : " · in " + mins + " min"
   } else {
-    suffix = " · " + hm(next.start)
-    if (!isSameDay(next.start, now)) suffix = " · " + dayLabel(next.start, now) + " " + hm(next.start)
+    suffix = " · " + hm(next.start, use12Hour)
+    if (!isSameDay(next.start, now)) suffix = " · " + dayLabel(next.start, now) + " " + hm(next.start, use12Hour)
   }
   var titleLimit = Math.max(3, limit - suffix.length)
   if (title.length > titleLimit) title = title.slice(0, Math.max(1, titleLimit - 1)) + "…"
@@ -979,14 +986,14 @@ function eventCalendarUrl(ev, base) {
   return b + "/r"
 }
 
-function formatUpdated(date, now) {
+function formatUpdated(date, now, use12Hour) {
   if (!date || isNaN(date.getTime()) || date.getTime() <= 0) return ""
   var mins = Math.floor((now.getTime() - date.getTime()) / 60000)
   if (mins < 1) return "just now"
   if (mins < 60) return mins + "m ago"
   var hours = Math.floor(mins / 60)
   if (hours < 24) return hours + "h ago"
-  return hm(date)
+  return hm(date, use12Hour)
 }
 
 // --- multiple ICS feeds -----------------------------------------------------

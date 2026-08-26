@@ -28,7 +28,7 @@ upcoming event from your calendar with live countdowns and lets you join video c
 - **Theme Aware**: Fully syncs with your active Omarchy theme (colors, typography, borders, and corner rounding adapt automatically)
 - **Universal Calendar Support**: Works with standard `.ics` feeds from Google Calendar, Microsoft Outlook, Apple iCloud, Nextcloud, Proton, and custom URLs
 - **Multiple Calendars**: Combine several `.ics` feeds (e.g. work + personal) into one widget. Give each feed a `label|` name so events carry a small tag, shared events are deduplicated, and one offline calendar doesn't hide the rest
-- **Bar Widget**: Shows the next event with live countdown (`Daily in 15 min`, `Daily · 15 min left`, `Daily · 14:00`, `Daily · Tmrw 14:00`, `Daily · Wed 14:00`)
+- **Bar Widget**: Shows the next event with live countdown (`Daily in 15 min`, `Daily · 15 min left`, `Daily · 14:00`, `Daily · Tmrw 14:00`, `Daily · Wed 14:00`). Set `timeFormat` to `12` for AM/PM times.
 - **Quick Join**: Click to open the agenda panel; single click on "Join Meeting" opens the video link (Google Meet, Zoom, Teams, Webex, GoToMeeting) in your default browser
 - **Instant Actions**: Right-click on the bar widget to join the next meeting immediately; middle-click to force-refresh
 - **Keyboard Navigation**: With the agenda panel open, `↑`/`↓` (or `j`/`k`) move through the refresh button, hero actions, and event rows, `Enter`/`Space` activates, `r` refreshes, `m` joins the next meeting, `o` opens it in the calendar, `Tab`/`Shift+Tab` switch panels, `Escape` closes — all scoped to the focused panel so no Omarchy keybinding is ever shadowed
@@ -115,6 +115,7 @@ Available settings (`omarchy bar set <widget> <key> <value>`):
 | `refreshMinutes`      | `5`     | How often to refetch the feeds                      |
 | `showDaysAhead`       | `3`     | How many days ahead to list meetings                |
 | `maxTitleLength`      | `28`    | Bar label truncation length                         |
+| `timeFormat`          | `24`    | Time display format: `24` (24-hour) or `12` (AM/PM) |
 | `maxFeedSizeMiB`      | `10`    | Maximum size of each downloaded calendar feed (MiB) |
 | `showOnlyWithVideoLink` | `true` | Only show meetings that have a video link          |
 | `browserCommand`      | `""`    | Command used to open the Meet URL (`xdg-open` by default) |

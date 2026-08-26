@@ -241,7 +241,7 @@ Panel {
                 if (root.offlineFeedCount > 0)
                   return root.offlineFeedCount + " calendar" + (root.offlineFeedCount > 1 ? "s" : "") + " offline · updated"
                 if (root.hostWidget && root.hostWidget.configured)
-                  return Model.formatUpdated(root.hostWidget.lastUpdated, root.now)
+                  return Model.formatUpdated(root.hostWidget.lastUpdated, root.now, root.hostWidget.use12Hour)
                 return ""
               }
               color: (root.lastFetchFailed || root.offlineFeedCount > 0) ? Color.urgent : Qt.darker(root.contentForeground, 1.5)
@@ -434,8 +434,8 @@ Panel {
                 Text {
                   width: parent.width
                   text: root.next
-                    ? Model.meetingTimeLabel(root.next.start, root.next.end, root.now)
-                      + (Model.relativeStatus(root.next, root.now) ? " · " + Model.relativeStatus(root.next, root.now) : "")
+                    ? Model.meetingTimeLabel(root.next.start, root.next.end, root.now, root.hostWidget.use12Hour)
+                      + (Model.relativeStatus(root.next, root.now, root.hostWidget.use12Hour) ? " · " + Model.relativeStatus(root.next, root.now, root.hostWidget.use12Hour) : "")
                     : ""
                   color: Qt.darker(root.contentForeground, 1.35)
                   font.family: root.contentFontFamily
@@ -611,7 +611,7 @@ Panel {
                           Text {
                             Layout.alignment: Qt.AlignVCenter
                             Layout.preferredWidth: Style.space(44)
-                            text: Model.hm(meeting.start)
+                            text: Model.hm(meeting.start, root.hostWidget.use12Hour)
                             color: Qt.darker(root.contentForeground, 1.3)
                             font.family: root.contentFontFamily
                             font.pixelSize: Style.font.bodySmall

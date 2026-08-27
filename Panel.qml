@@ -489,7 +489,7 @@ Panel {
                     visible: !!root.next
                     text: {
                       var parts = []
-                      var dur = root.next ? Model.formatDuration(root.next.start, root.next.end) : ""
+                      var dur = root.next ? (root.next.allDay ? Model.LABEL_ALL_DAY : Model.formatDuration(root.next.start, root.next.end)) : ""
                       if (dur) parts.push(dur)
                       if (root.next) parts.push(root.next.meetUrl ? "  " + Model.meetLabel(root.next.meetUrl) : "󰃯  Event")
                       return parts.join("  ·  ")
@@ -514,7 +514,7 @@ Panel {
                 Text {
                   width: parent.width
                   text: root.next
-                    ? Model.meetingTimeLabel(root.next.start, root.next.end, root.now)
+                    ? Model.meetingTimeLabel(root.next.start, root.next.end, root.now, root.next.allDay)
                       + (Model.relativeStatus(root.next, root.now) ? " · " + Model.relativeStatus(root.next, root.now) : "")
                     : ""
                   color: Qt.darker(root.contentForeground, 1.35)
@@ -703,7 +703,7 @@ Panel {
                             Layout.alignment: tagPill.visible ? Qt.AlignTop : Qt.AlignVCenter
                             Layout.topMargin: tagPill.visible ? Style.space(1) : 0
                             Layout.preferredWidth: Style.space(44)
-                            text: Model.hm(meeting.start)
+                            text: meeting.allDay ? Model.LABEL_ALL_DAY : Model.hm(meeting.start)
                             color: Qt.darker(root.contentForeground, 1.3)
                             font.family: root.contentFontFamily
                             font.pixelSize: Style.font.bodySmall
@@ -757,7 +757,7 @@ Panel {
                             Layout.topMargin: tagPill.visible ? Style.space(1) : 0
                             Layout.preferredWidth: Style.space(34)
                             horizontalAlignment: Text.AlignRight
-                            text: Model.formatDuration(meeting.start, meeting.end)
+                            text: meeting.allDay ? "" : Model.formatDuration(meeting.start, meeting.end)
                             color: Qt.darker(root.contentForeground, 1.6)
                             font.family: root.contentFontFamily
                             font.pixelSize: Style.font.caption

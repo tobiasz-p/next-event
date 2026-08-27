@@ -98,6 +98,7 @@ BarWidget {
     ? (nextMeeting.meetUrl ? "  " : "󰃯  ") + Model.formatLabel(nextMeeting, root.now, maxTitleLength)
     : ""
   readonly property bool inMeeting: nextMeeting
+    && !nextMeeting.allDay
     && nextMeeting.start && nextMeeting.end
     && root.now.getTime() >= nextMeeting.start.getTime()
     && root.now.getTime() < nextMeeting.end.getTime()
@@ -434,7 +435,7 @@ BarWidget {
       return "NextEvent — No upcoming events"
     }
     var title = root.nextMeeting.title || "(Untitled)"
-    var range = Model.timeRange(root.nextMeeting.start, root.nextMeeting.end)
+    var range = Model.timeRange(root.nextMeeting.start, root.nextMeeting.end, root.nextMeeting.allDay)
     var status = Model.relativeStatus(root.nextMeeting, root.now)
     var line = title + " · " + range + (status ? " (" + status + ")" : "")
     if (root.showCalendarLabel && root.nextMeeting.feedLabel) line = root.nextMeeting.feedLabel + " · " + line

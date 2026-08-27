@@ -161,15 +161,33 @@ function weekdayOfKey(key) {
 // QML's V4 engine has no Intl, so named zones must be resolved from the
 // VTIMEZONE blocks the feed itself ships.
 
-// RFC 5545 offset/rule units, and how far either side of a target year the
-// transition search must look (DST observances always repeat yearly).
 var MS_PER_SECOND = 1000
 var SECONDS_PER_MINUTE = 60
 var MINUTES_PER_HOUR = 60
+var HOURS_PER_DAY = 24
 var DAYS_PER_WEEK = 7
+var MS_PER_MINUTE = SECONDS_PER_MINUTE * MS_PER_SECOND
+var MS_PER_HOUR = MINUTES_PER_HOUR * MS_PER_MINUTE
+var MS_PER_DAY = HOURS_PER_DAY * MS_PER_HOUR
 var TRANSITION_YEAR_MARGIN = 1
 
+var MAX_RRULE_STEPS = 20000
+var DEFAULT_LOOKAHEAD_DAYS = 3
+var DEFAULT_MAX_EVENTS = 80
+var DEFAULT_MAX_ROWS = 20
+var DEFAULT_MAX_TITLE_LENGTH = 28
+var MIN_MAX_TITLE_LENGTH = 8
+var MIN_TITLE_CHARS = 3
+
 var LABEL_ALL_DAY = "All day"
+var LABEL_TODAY = "Today"
+var LABEL_TOMORROW = "Tomorrow"
+var LABEL_YESTERDAY = "Yest"
+var LABEL_UNTITLED = "(Untitled)"
+var LABEL_VIDEO_DEFAULT = "Video"
+var LABEL_JUST_NOW = "just now"
+var SECTION_TODAY = "TODAY"
+var SECTION_TOMORROW = "TOMORROW"
 
 var TZ_TABLE = {}
 
@@ -469,7 +487,6 @@ function expandOccurrences(startKey, tzInfo, rule, fromKey, lookaheadDays, maxOc
   var out = []
   var toKey = addDaysToKey(fromKey, lookaheadDays)
   var startParts = keyToParts(startKey)
-  var MAX_STEPS = 20000
 
   function pushKey(key) {
     if (key < startKey || key < fromKey || key > toKey) return
@@ -501,7 +518,7 @@ function expandOccurrences(startKey, tzInfo, rule, fromKey, lookaheadDays, maxOc
 
   if (rule.freq === "DAILY") {
     for (key = startKey; key <= toKey; key = addDaysToKey(key, rule.interval)) {
-      if (++guard > MAX_STEPS) break
+      if (++guard > MAX_RRULE_STEPS) break
       var wd = weekdayOfKey(key)
       var hit = rule.byday.length === 0
       for (i = 0; i < rule.byday.length; i++) {
@@ -524,7 +541,7 @@ function expandOccurrences(startKey, tzInfo, rule, fromKey, lookaheadDays, maxOc
       offsets.push((weekdayOfKey(startKey) - WEEKDAY.MO + 7) % 7)
     }
     for (weekKey = firstWeek; weekKey <= toKey; weekKey = addDaysToKey(weekKey, rule.interval * 7)) {
-      if (++guard > MAX_STEPS) break
+      if (++guard > MAX_RRULE_STEPS) break
       for (i = 0; i < offsets.length; i++) {
         var wk = addDaysToKey(weekKey, offsets[i])
         if (wk < startKey) continue
@@ -535,7 +552,7 @@ function expandOccurrences(startKey, tzInfo, rule, fromKey, lookaheadDays, maxOc
     }
   } else if (rule.freq === "MONTHLY") {
     var idx = startParts.y * 12 + (startParts.mo - 1)
-    for (var step = 0; step < MAX_STEPS; step++) {
+    for (var step = 0; step < MAX_RRULE_STEPS; step++) {
       var y = Math.floor((idx + step * rule.interval) / 12)
       var mo = ((idx + step * rule.interval) % 12) + 1
       var candidates = monthCandidates(y, mo, rule, startKey, toKey, startParts.d)
@@ -547,7 +564,7 @@ function expandOccurrences(startKey, tzInfo, rule, fromKey, lookaheadDays, maxOc
       if (dayKey(y, mo, daysInMonthUTC(y, mo)) > toKey) break
     }
   } else if (rule.freq === "YEARLY") {
-    for (var yi = 0; yi < MAX_STEPS; yi++) {
+    for (var yi = 0; yi < MAX_RRULE_STEPS; yi++) {
       var yy = startParts.y + yi * rule.interval
       var months = rule.bymonth.length ? rule.bymonth : [startParts.mo]
       for (var mi = 0; mi < months.length; mi++) {
@@ -572,18 +589,18 @@ var VIDEO_PROVIDERS = [
   { re: /https:\/\/meet\.google\.com\/[a-z0-9][a-z0-9-]*/, label: "Meet" },
   // Vanity subdomains (us02web., <company>.), /j/ meetings, /w/ and /s/ webinars,
   // /my/ personal rooms, on both the commercial domain and Zoom for Government.
-  { re: /https?:\/\/(?:[\w-]+\.)*(?:zoom\.us|zoomgov\.com)\/(?:j|w|s|my)\/[^\s"'<>]+/, label: "Video" },
+  { re: /https?:\/\/(?:[\w-]+\.)*(?:zoom\.us|zoomgov\.com)\/(?:j|w|s|my)\/[^\s"'<>]+/, label: LABEL_VIDEO_DEFAULT },
   // Commercial, personal (teams.live.com) and government (GCC High / DoD, on
   // teams.microsoft.us) tenants. Paths stay restricted: an Outlook invite body
   // also links teams.microsoft.com/meetingOptions/… below the join link, so a
   // domain-only match would join the settings page.
-  { re: /https?:\/\/(?:teams\.microsoft\.com|teams\.live\.com|(?:[\w-]+\.)?teams\.microsoft\.us)\/(?:l\/meetup-join|l\/meeting|meet|dl\/launcher)\/[^\s"'<>]+/, label: "Video" },
+  { re: /https?:\/\/(?:teams\.microsoft\.com|teams\.live\.com|(?:[\w-]+\.)?teams\.microsoft\.us)\/(?:l\/meetup-join|l\/meeting|meet|dl\/launcher)\/[^\s"'<>]+/, label: LABEL_VIDEO_DEFAULT },
   // Personal rooms (/meet/, /join/) and the hosted-site form,
   // <company>.webex.com/<site>/j.php?MTID=… — the site segment sits before j.php.
-  { re: /https?:\/\/(?:[\w-]+\.)*webex\.com\/(?:meet\/|join\/|[^\s"'<>]*j\.php\?)[^\s"'<>]+/, label: "Video" },
+  { re: /https?:\/\/(?:[\w-]+\.)*webex\.com\/(?:meet\/|join\/|[^\s"'<>]*j\.php\?)[^\s"'<>]+/, label: LABEL_VIDEO_DEFAULT },
   // meet.goto.com and gotomeet.me host nothing but meetings, so any path will do.
   // gotomeeting.com also serves marketing pages, hence /join/.
-  { re: /https?:\/\/(?:(?:meet\.goto\.com|(?:www\.)?gotomeet\.me)\/[^\s"'<>]+|(?:[\w-]+\.)*gotomeeting\.com\/join\/[^\s"'<>]+)/, label: "Video" },
+  { re: /https?:\/\/(?:(?:meet\.goto\.com|(?:www\.)?gotomeet\.me)\/[^\s"'<>]+|(?:[\w-]+\.)*gotomeeting\.com\/join\/[^\s"'<>]+)/, label: LABEL_VIDEO_DEFAULT },
 ]
 
 // Sentence punctuation trailing a URL belongs to the prose, not the link.
@@ -601,12 +618,12 @@ function findMeetUrl(text) {
 }
 
 function meetLabel(url) {
-  if (!url) return "Video"
+  if (!url) return LABEL_VIDEO_DEFAULT
   var s = String(url)
   for (var i = 0; i < VIDEO_PROVIDERS.length; i++) {
     if (VIDEO_PROVIDERS[i].re.test(s)) return VIDEO_PROVIDERS[i].label
   }
-  return "Video"
+  return LABEL_VIDEO_DEFAULT
 }
 
 function parseEventBlock(block) {
@@ -707,8 +724,8 @@ function parseEventBlock(block) {
 
 function parseIcs(raw, options) {
   options = options || {}
-  var lookaheadDays = Math.max(1, parseInt(options.lookaheadDays, 10) || 3)
-  var maxOccurrences = Math.max(1, parseInt(options.maxEvents, 10) || 80)
+  var lookaheadDays = Math.max(1, parseInt(options.lookaheadDays, 10) || DEFAULT_LOOKAHEAD_DAYS)
+  var maxOccurrences = Math.max(1, parseInt(options.maxEvents, 10) || DEFAULT_MAX_EVENTS)
   var now = options.now || new Date()
   var fromKey = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate()
 
@@ -774,7 +791,7 @@ function parseIcs(raw, options) {
       var startDate = overrideEv ? overrideEv.start : occStart
       var endDate = overrideEv ? overrideEv.end : new Date(startMs + master.durationMs)
       if (endDate.getTime() <= startDate.getTime())
-        endDate = new Date(startDate.getTime() + 3600000)
+        endDate = new Date(startDate.getTime() + MS_PER_HOUR)
       result.push({
         uid: master.uid,
         title: src.title,
@@ -910,10 +927,10 @@ function timeRange(start, end, allDay) {
 }
 
 function meetingTimeLabel(start, end, now, allDay) {
-  var isAllDay = allDay === true || (start && end && (end.getTime() - start.getTime()) >= 86400000 && start.getHours() === 0 && start.getMinutes() === 0 && end.getHours() === 0 && end.getMinutes() === 0)
+  var isAllDay = allDay === true || (start && end && (end.getTime() - start.getTime()) >= MS_PER_DAY && start.getHours() === 0 && start.getMinutes() === 0 && end.getHours() === 0 && end.getMinutes() === 0)
   var labels = []
-  if (isSameDay(start, now)) labels.push("Today")
-  else if (isSameDay(start, new Date(now.getTime() + MS_PER_DAY))) labels.push("Tomorrow")
+  if (isSameDay(start, now)) labels.push(LABEL_TODAY)
+  else if (isSameDay(start, new Date(now.getTime() + MS_PER_DAY))) labels.push(LABEL_TOMORROW)
   else {
     var dow = WEEKDAY_NAMES[start.getDay()]
     var mo = MONTH_NAMES_SHORT[start.getMonth()]
@@ -947,15 +964,15 @@ function relativeStatus(next, now) {
   var end = next.end.getTime()
   var t = now.getTime()
   if (t < start) {
-    var mins = Math.max(1, Math.round((start - t) / 60000))
-    return mins >= 60 ? "starts at " + hm(next.start) : "starts in " + mins + " min"
+    var mins = Math.max(1, Math.round((start - t) / MS_PER_MINUTE))
+    return mins >= MINUTES_PER_HOUR ? "starts at " + hm(next.start) : "starts in " + mins + " min"
   }
   if (t < end) {
-    var left = Math.max(1, Math.round((end - t) / 60000))
+    var left = Math.max(1, Math.round((end - t) / MS_PER_MINUTE))
     if (left <= 1) return "1 min left"
-    if (left < 60) return left + " min left"
-    var h = Math.floor(left / 60)
-    var m = left % 60
+    if (left < MINUTES_PER_HOUR) return left + " min left"
+    var h = Math.floor(left / MINUTES_PER_HOUR)
+    var m = left % MINUTES_PER_HOUR
     return (m > 0 ? h + "h " + m + "m" : h + "h") + " left"
   }
   return ""
@@ -963,10 +980,10 @@ function relativeStatus(next, now) {
 
 function dayLabel(start, now) {
   var dayDiff = Math.round((startOfDay(start) - startOfDay(now)) / MS_PER_DAY)
-  if (dayDiff === 0) return "Today"
+  if (dayDiff === 0) return LABEL_TODAY
   if (dayDiff === 1) return "Tmrw"
-  if (dayDiff === -1) return "Yest"
-  if (dayDiff > 1 && dayDiff < 7) return WEEKDAY_NAMES[start.getDay()]
+  if (dayDiff === -1) return LABEL_YESTERDAY
+  if (dayDiff > 1 && dayDiff < DAYS_PER_WEEK) return WEEKDAY_NAMES[start.getDay()]
   var dow = WEEKDAY_NAMES[start.getDay()]
   var mo = MONTH_NAMES_SHORT[start.getMonth()]
   return dow + " " + start.getDate() + " " + mo
@@ -978,8 +995,8 @@ function startOfDay(date) {
 
 function formatLabel(next, now, maxTitleLength) {
   if (!next || !next.start) return ""
-  var title = String(next.title || "(Untitled)")
-  var limit = Math.max(8, parseInt(maxTitleLength, 10) || 28)
+  var title = String(next.title || LABEL_UNTITLED)
+  var limit = Math.max(MIN_MAX_TITLE_LENGTH, parseInt(maxTitleLength, 10) || DEFAULT_MAX_TITLE_LENGTH)
   var suffix
   var start = next.start.getTime()
   var end = next.end ? next.end.getTime() : start
@@ -991,24 +1008,24 @@ function formatLabel(next, now, maxTitleLength) {
       suffix = " · " + dayLabel(next.start, now) + " " + LABEL_ALL_DAY
     }
   } else if (t >= start && t < end) {
-    var minsLeft = Math.max(1, Math.round((end - t) / 60000))
+    var minsLeft = Math.max(1, Math.round((end - t) / MS_PER_MINUTE))
     if (minsLeft <= 1) {
       suffix = " · 1 min left"
-    } else if (minsLeft < 60) {
+    } else if (minsLeft < MINUTES_PER_HOUR) {
       suffix = " · " + minsLeft + " min left"
     } else {
-      var h = Math.floor(minsLeft / 60)
-      var m = minsLeft % 60
+      var h = Math.floor(minsLeft / MINUTES_PER_HOUR)
+      var m = minsLeft % MINUTES_PER_HOUR
       suffix = " · " + (m > 0 ? h + "h " + m + "m" : h + "h") + " left"
     }
-  } else if (start - t <= 60 * 60000 && start > t) {
-    var mins = Math.max(1, Math.round((start - t) / 60000))
+  } else if (start - t <= MS_PER_HOUR && start > t) {
+    var mins = Math.max(1, Math.round((start - t) / MS_PER_MINUTE))
     suffix = mins <= 1 ? " · in a min" : " · in " + mins + " min"
   } else {
     suffix = " · " + hm(next.start)
     if (!isSameDay(next.start, now)) suffix = " · " + dayLabel(next.start, now) + " " + hm(next.start)
   }
-  var titleLimit = Math.max(3, limit - suffix.length)
+  var titleLimit = Math.max(MIN_TITLE_CHARS, limit - suffix.length)
   if (title.length > titleLimit) title = title.slice(0, Math.max(1, titleLimit - 1)) + "…"
   return title + suffix
 }
@@ -1033,9 +1050,9 @@ function compareUpcoming(a, b, now) {
 
 function buildUpcoming(events, now, options) {
   options = options || {}
-  var lookaheadDays = Math.max(1, parseInt(options.lookaheadDays, 10) || 3)
+  var lookaheadDays = Math.max(1, parseInt(options.lookaheadDays, 10) || DEFAULT_LOOKAHEAD_DAYS)
   var showOnlyWithVideoLink = options.showOnlyWithVideoLink === true
-  var maxRows = Math.max(1, parseInt(options.maxRows, 10) || 20)
+  var maxRows = Math.max(1, parseInt(options.maxRows, 10) || DEFAULT_MAX_ROWS)
   var t = now.getTime()
   var horizon = t + lookaheadDays * MS_PER_DAY
 
@@ -1057,18 +1074,18 @@ function buildUpcoming(events, now, options) {
 
 function formatDuration(start, end) {
   if (!start || !end) return ""
-  var mins = Math.round((end.getTime() - start.getTime()) / 60000)
+  var mins = Math.round((end.getTime() - start.getTime()) / MS_PER_MINUTE)
   if (mins <= 0) return ""
-  if (mins < 60) return mins + "m"
-  var h = Math.floor(mins / 60)
-  var m = mins % 60
+  if (mins < MINUTES_PER_HOUR) return mins + "m"
+  var h = Math.floor(mins / MINUTES_PER_HOUR)
+  var m = mins % MINUTES_PER_HOUR
   return m > 0 ? h + "h " + m + "m" : h + "h"
 }
 
 function daySectionTitle(date, now) {
   var diff = Math.round((startOfDay(date) - startOfDay(now)) / MS_PER_DAY)
-  if (diff === 0) return "TODAY"
-  if (diff === 1) return "TOMORROW"
+  if (diff === 0) return SECTION_TODAY
+  if (diff === 1) return SECTION_TOMORROW
   var dow = WEEKDAY_NAMES[date.getDay()].toUpperCase()
   var mo = MONTH_NAMES_SHORT[date.getMonth()].toUpperCase()
   return dow + " " + date.getDate() + " " + mo
@@ -1077,8 +1094,8 @@ function daySectionTitle(date, now) {
 // Group upcoming events into day sections (TODAY, TOMORROW, DOW DD MMM)
 function buildScheduleGroups(events, now, options) {
   options = options || {}
-  var lookaheadDays = Math.max(1, parseInt(options.lookaheadDays, 10) || 3)
-  var maxRows = Math.max(1, parseInt(options.maxRows, 10) || 20)
+  var lookaheadDays = Math.max(1, parseInt(options.lookaheadDays, 10) || DEFAULT_LOOKAHEAD_DAYS)
+  var maxRows = Math.max(1, parseInt(options.maxRows, 10) || DEFAULT_MAX_ROWS)
   var t = now.getTime()
   var horizon = t + lookaheadDays * MS_PER_DAY
 
@@ -1145,11 +1162,11 @@ function eventCalendarUrl(ev, base) {
 
 function formatUpdated(date, now) {
   if (!date || isNaN(date.getTime()) || date.getTime() <= 0) return ""
-  var mins = Math.floor((now.getTime() - date.getTime()) / 60000)
-  if (mins < 1) return "just now"
-  if (mins < 60) return mins + "m ago"
-  var hours = Math.floor(mins / 60)
-  if (hours < 24) return hours + "h ago"
+  var mins = Math.floor((now.getTime() - date.getTime()) / MS_PER_MINUTE)
+  if (mins < 1) return LABEL_JUST_NOW
+  if (mins < MINUTES_PER_HOUR) return mins + "m ago"
+  var hours = Math.floor(mins / MINUTES_PER_HOUR)
+  if (hours < HOURS_PER_DAY) return hours + "h ago"
   return hm(date)
 }
 

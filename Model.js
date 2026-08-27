@@ -169,6 +169,8 @@ var MINUTES_PER_HOUR = 60
 var DAYS_PER_WEEK = 7
 var TRANSITION_YEAR_MARGIN = 1
 
+var LABEL_ALL_DAY = "All day"
+
 var TZ_TABLE = {}
 
 // Parse an RFC 5545 UTC offset ([+-]HHMM[SS]) into milliseconds.
@@ -647,6 +649,14 @@ function parseEventBlock(block) {
           : parsed.date.getUTCFullYear() * 10000 + (parsed.date.getUTCMonth() + 1) * 100 + parsed.date.getUTCDate()
       } else {
         ev.end = parsed.date
+        var wallEnd = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?/.exec(value)
+        ev.tzEndInfo = {
+          utc: parsed.utc,
+          tzid: tzid,
+          h: wallEnd ? parseInt(wallEnd[4], 10) : 0,
+          mi: wallEnd ? parseInt(wallEnd[5], 10) : 0,
+          s: wallEnd && wallEnd[6] ? parseInt(wallEnd[6], 10) : 0
+        }
       }
       lastTzid = tzid
     }
@@ -677,6 +687,20 @@ function parseEventBlock(block) {
   } else {
     ev.durationMs = ev.allDay ? MS_PER_DAY : MS_PER_HOUR
     ev.end = new Date(ev.start.getTime() + ev.durationMs)
+  }
+
+  if (!ev.allDay && ev.start && ev.end) {
+    var dur = ev.end.getTime() - ev.start.getTime()
+    var startIsMidnight = ev.tzInfo
+      ? (ev.tzInfo.h === 0 && ev.tzInfo.mi === 0 && ev.tzInfo.s === 0)
+      : (ev.start.getHours() === 0 && ev.start.getMinutes() === 0 && ev.start.getSeconds() === 0)
+    var endIsMidnight = ev.tzEndInfo
+      ? (ev.tzEndInfo.h === 0 && ev.tzEndInfo.mi === 0 && ev.tzEndInfo.s === 0)
+      : (ev.end.getHours() === 0 && ev.end.getMinutes() === 0 && ev.end.getSeconds() === 0)
+    if (dur >= 23 * 3600000 && startIsMidnight && endIsMidnight) {
+      ev.allDay = true
+      ev.durationMs = dur
+    }
   }
   return ev
 }
@@ -879,12 +903,14 @@ function shortStart(date) {
   return hm(date)
 }
 
-function timeRange(start, end) {
+function timeRange(start, end, allDay) {
+  if (allDay) return LABEL_ALL_DAY
   if (!start) return ""
   return hm(start) + "–" + hm(end)
 }
 
-function meetingTimeLabel(start, end, now) {
+function meetingTimeLabel(start, end, now, allDay) {
+  var isAllDay = allDay === true || (start && end && (end.getTime() - start.getTime()) >= 86400000 && start.getHours() === 0 && start.getMinutes() === 0 && end.getHours() === 0 && end.getMinutes() === 0)
   var labels = []
   if (isSameDay(start, now)) labels.push("Today")
   else if (isSameDay(start, new Date(now.getTime() + MS_PER_DAY))) labels.push("Tomorrow")
@@ -893,12 +919,30 @@ function meetingTimeLabel(start, end, now) {
     var mo = MONTH_NAMES_SHORT[start.getMonth()]
     labels.push(dow + " " + start.getDate() + " " + mo)
   }
-  if (start && end) labels.push(timeRange(start, end))
+  if (isAllDay) {
+    labels.push(LABEL_ALL_DAY)
+  } else if (start && end) {
+    labels.push(timeRange(start, end))
+  }
   return labels.join(" · ")
 }
 
+function isEventAllDay(ev) {
+  if (!ev) return false
+  if (ev.allDay === true) return true
+  if (ev.start && ev.end) {
+    var dur = ev.end.getTime() - ev.start.getTime()
+    if (dur >= 23 * 3600000 &&
+        ev.start.getHours() === 0 && ev.start.getMinutes() === 0 && ev.start.getSeconds() === 0 &&
+        ev.end.getHours() === 0 && ev.end.getMinutes() === 0 && ev.end.getSeconds() === 0) {
+      return true
+    }
+  }
+  return false
+}
+
 function relativeStatus(next, now) {
-  if (!next || !next.start || !next.end) return ""
+  if (!next || !next.start || !next.end || isEventAllDay(next)) return ""
   var start = next.start.getTime()
   var end = next.end.getTime()
   var t = now.getTime()
@@ -940,7 +984,13 @@ function formatLabel(next, now, maxTitleLength) {
   var start = next.start.getTime()
   var end = next.end ? next.end.getTime() : start
   var t = now.getTime()
-  if (t >= start && t < end) {
+  if (isEventAllDay(next)) {
+    if (isSameDay(next.start, now) || (t >= start && t < end)) {
+      suffix = " · " + LABEL_ALL_DAY
+    } else {
+      suffix = " · " + dayLabel(next.start, now) + " " + LABEL_ALL_DAY
+    }
+  } else if (t >= start && t < end) {
     var minsLeft = Math.max(1, Math.round((end - t) / 60000))
     if (minsLeft <= 1) {
       suffix = " · 1 min left"
@@ -963,7 +1013,16 @@ function formatLabel(next, now, maxTitleLength) {
   return title + suffix
 }
 
-function compareUpcoming(a, b) {
+function compareUpcoming(a, b, now) {
+  var todayMs = typeof now === "number" ? now : startOfDay(now || new Date())
+  var aDay = Math.max(startOfDay(a.start), todayMs)
+  var bDay = Math.max(startOfDay(b.start), todayMs)
+  if (aDay !== bDay) return aDay - bDay
+
+  var aAllDay = isEventAllDay(a)
+  var bAllDay = isEventAllDay(b)
+  if (aAllDay !== bAllDay) return aAllDay ? 1 : -1
+
   var av = a.start.getTime(), bv = b.start.getTime()
   if (av !== bv) return av - bv
   var bd = (b.end ? b.end.getTime() : bv) - bv
@@ -990,7 +1049,7 @@ function buildUpcoming(events, now, options) {
     upcoming.push(ev)
   }
 
-  upcoming.sort(compareUpcoming)
+  upcoming.sort(function(a, b) { return compareUpcoming(a, b, now) })
 
   if (upcoming.length > maxRows) upcoming = upcoming.slice(0, maxRows)
   return upcoming
@@ -1031,18 +1090,19 @@ function buildScheduleGroups(events, now, options) {
     if (ev.start.getTime() > horizon) continue
     valid.push(ev)
   }
-  valid.sort(compareUpcoming)
+  valid.sort(function(a, b) { return compareUpcoming(a, b, now) })
   if (valid.length > maxRows) valid = valid.slice(0, maxRows)
 
   var groups = []
   var map = {}
   for (var j = 0; j < valid.length; j++) {
     var item = valid[j]
-    var key = dayKey(item.start.getFullYear(), item.start.getMonth() + 1, item.start.getDate())
+    var groupDate = item.start.getTime() < t ? now : item.start
+    var key = dayKey(groupDate.getFullYear(), groupDate.getMonth() + 1, groupDate.getDate())
     if (!map[key]) {
       var grp = {
         key: key,
-        title: daySectionTitle(item.start, now),
+        title: daySectionTitle(groupDate, now),
         items: []
       }
       map[key] = grp
@@ -1070,7 +1130,7 @@ function upcomingToday(events, now) {
     out.push(ev)
   }
 
-  out.sort(compareUpcoming)
+  out.sort(function(a, b) { return compareUpcoming(a, b, now) })
   return out
 }
 
@@ -1212,6 +1272,9 @@ if (typeof module !== "undefined" && module.exports) {
     zonedToUtc: zonedToUtc,
     splitIcsFeeds: splitIcsFeeds,
     normalizeKey: normalizeKey,
-    dedupeEvents: dedupeEvents
+    dedupeEvents: dedupeEvents,
+    compareUpcoming: compareUpcoming,
+    isEventAllDay: isEventAllDay,
+    LABEL_ALL_DAY: LABEL_ALL_DAY
   }
 }

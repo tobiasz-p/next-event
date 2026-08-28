@@ -15,8 +15,8 @@ function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
 var MS_PER_DAY  = 86400000
 var MS_PER_HOUR = 3600000
 
-// Sync contract: responseStatus value written by next-event-sync for declined invitations.
 var RESPONSE_STATUS_DECLINED = "declined"
+var DEFAULT_EVENT_TITLE = "(Untitled)"
 
 // RFC 5545 line unfolding: CRLF followed by a single space or tab is a
 // continuation of the previous line.
@@ -834,7 +834,7 @@ function parseJsonEvents(raw, options) {
 
     result.push({
       uid: item.id || item.uid || ("json-event-" + i),
-      title: item.title || item.summary || "(Untitled)",
+      title: item.title || item.summary || DEFAULT_EVENT_TITLE,
       start: startDate,
       end: endDate,
       allDay: allDay,

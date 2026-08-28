@@ -33,6 +33,25 @@ BarWidget {
     if (v === false || v === 0 || v === "0" || v === "false") return false
     return false
   }
+  readonly property bool showCalendarLabel: {
+    var v = setting("showCalendarLabel", true)
+    if (v === undefined || v === null) return true
+    if (v === false || v === 0 || v === "0" || v === "false") return false
+    return true
+  }
+  readonly property bool useCalendarColors: {
+    var v = setting("useCalendarColors", true)
+    if (v === undefined || v === null) return true
+    if (v === false || v === 0 || v === "0" || v === "false") return false
+    return true
+  }
+  readonly property bool colorOnBar: {
+    var v = setting("colorOnBar", false)
+    if (v === undefined || v === null) return false
+    if (v === true || v === 1 || v === "1" || v === "true") return true
+    if (v === false || v === 0 || v === "0" || v === "false") return false
+    return false
+  }
   readonly property string browserCommand: String(setting("browserCommand", "") || "").trim()
   // Base for "Open in Calendar". Defaults to the signed-in account; set to
   // e.g. "https://calendar.google.com/calendar/u/2" to open a specific
@@ -382,11 +401,14 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     text: root.label !== "" ? root.label : "󰃲"
+    foreground: root.useCalendarColors && root.colorOnBar && root.nextMeeting && root.nextMeeting.calendarColor
+      ? root.nextMeeting.calendarColor
+      : (root.bar ? root.bar.barForeground : Color.foreground)
     labelVisible: true
     hasVisualContent: true
     dimmed: root.label === ""
     active: root.inMeeting
-    useActiveColor: false
+    useActiveColor: !(root.useCalendarColors && root.colorOnBar)
     horizontalMargin: 8.75
     verticalPadding: 8.75
     tooltipText: root.tooltipLine
@@ -415,7 +437,7 @@ BarWidget {
     var range = Model.timeRange(root.nextMeeting.start, root.nextMeeting.end)
     var status = Model.relativeStatus(root.nextMeeting, root.now)
     var line = title + " · " + range + (status ? " (" + status + ")" : "")
-    if (root.nextMeeting.feedLabel) line = root.nextMeeting.feedLabel + " · " + line
+    if (root.showCalendarLabel && root.nextMeeting.feedLabel) line = root.nextMeeting.feedLabel + " · " + line
     if (root.lastFetchFailed) line += " · Offline"
     else if (root.offlineFeedCount > 0) line += " · " + root.offlineFeedCount + " calendar" + (root.offlineFeedCount > 1 ? "s" : "") + " offline"
     return line

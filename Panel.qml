@@ -20,6 +20,8 @@ Panel {
   readonly property bool fetching: hostWidget ? hostWidget.fetching : false
   readonly property bool lastFetchFailed: hostWidget ? hostWidget.lastFetchFailed : false
   readonly property int offlineFeedCount: hostWidget ? hostWidget.offlineFeedCount : 0
+  readonly property bool showCalendarLabel: hostWidget ? hostWidget.showCalendarLabel : true
+  readonly property bool useCalendarColors: hostWidget ? hostWidget.useCalendarColors : true
 
   property var scheduleGroups: []
   property var next: null
@@ -424,6 +426,18 @@ Panel {
                 : Border.none()
               implicitHeight: heroCol.implicitHeight + Style.space(20)
 
+              Rectangle {
+                id: heroColorStripe
+                visible: root.useCalendarColors && !!(root.next && root.next.calendarColor)
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.margins: Style.space(2)
+                width: Style.space(3.5)
+                radius: Style.cornerRadius * 0.5
+                color: (root.next && root.next.calendarColor) ? root.next.calendarColor : Color.accent
+              }
+
               Column {
                 id: heroCol
                 anchors.left: parent.left
@@ -449,9 +463,12 @@ Panel {
 
                   Rectangle {
                     id: heroTagPill
-                    visible: !!(root.next && root.next.feedLabel)
+                    visible: root.showCalendarLabel && !!(root.next && (root.next.feedLabel || (root.useCalendarColors && root.next.calendarName)))
                     Layout.alignment: Qt.AlignVCenter
-                    color: Qt.rgba(0.5, 0.5, 0.5, 0.18)
+                    readonly property color calColor: (root.next && root.next.calendarColor) ? root.next.calendarColor : Color.accent
+                    color: (root.useCalendarColors && root.next && root.next.calendarColor)
+                      ? Qt.rgba(calColor.r, calColor.g, calColor.b, 0.22)
+                      : Qt.rgba(0.5, 0.5, 0.5, 0.18)
                     radius: Style.cornerRadius * 0.5
                     implicitWidth: heroTagText.implicitWidth + Style.space(10)
                     implicitHeight: Style.space(16)
@@ -459,10 +476,12 @@ Panel {
                     Text {
                       id: heroTagText
                       anchors.centerIn: parent
-                      color: root.inMeeting ? Color.accent : Qt.darker(root.contentForeground, 1.3)
+                      color: (root.useCalendarColors && root.next && root.next.calendarColor)
+                        ? root.next.calendarColor
+                        : (root.inMeeting ? Color.accent : Qt.darker(root.contentForeground, 1.3))
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
-                      text: root.next ? (root.next.feedLabel || "") : ""
+                      text: root.next ? (root.next.feedLabel || root.next.calendarName || "") : ""
                     }
                   }
 
@@ -669,8 +688,20 @@ Panel {
                           anchors.rightMargin: Style.space(10)
                           spacing: Style.space(8)
 
+                          Rectangle {
+                            id: colorDot
+                            visible: root.useCalendarColors && !!meeting.calendarColor
+                            Layout.alignment: tagPill.visible ? Qt.AlignTop : Qt.AlignVCenter
+                            Layout.topMargin: tagPill.visible ? Style.space(4) : 0
+                            implicitWidth: Style.space(6)
+                            implicitHeight: Style.space(6)
+                            radius: width * 0.5
+                            color: meeting.calendarColor || "transparent"
+                          }
+
                           Text {
-                            Layout.alignment: Qt.AlignVCenter
+                            Layout.alignment: tagPill.visible ? Qt.AlignTop : Qt.AlignVCenter
+                            Layout.topMargin: tagPill.visible ? Style.space(1) : 0
                             Layout.preferredWidth: Style.space(44)
                             text: Model.hm(meeting.start)
                             color: Qt.darker(root.contentForeground, 1.3)
@@ -679,38 +710,51 @@ Panel {
                             font.bold: true
                           }
 
-                          Rectangle {
-                            id: tagPill
-                            visible: !!meeting.feedLabel
+                          ColumnLayout {
+                            Layout.fillWidth: true
                             Layout.alignment: Qt.AlignVCenter
-                            color: Qt.rgba(0.5, 0.5, 0.5, 0.18)
-                            radius: Style.cornerRadius * 0.5
-                            implicitWidth: tagText.implicitWidth + Style.space(10)
-                            implicitHeight: Style.space(16)
+                            spacing: Style.space(2)
+
+                            Rectangle {
+                              id: tagPill
+                              visible: root.showCalendarLabel && !!meeting.feedLabel
+                              readonly property color pillCalColor: meeting.calendarColor || Color.accent
+                              color: (root.useCalendarColors && meeting.calendarColor)
+                                ? Qt.rgba(pillCalColor.r, pillCalColor.g, pillCalColor.b, 0.22)
+                                : Qt.rgba(0.5, 0.5, 0.5, 0.18)
+                              radius: Style.cornerRadius * 0.5
+                              implicitWidth: Math.min(tagText.implicitWidth + Style.space(10), Style.space(220))
+                              implicitHeight: Style.space(15)
+
+                              Text {
+                                id: tagText
+                                anchors.centerIn: parent
+                                width: parent.width - Style.space(6)
+                                horizontalAlignment: Text.AlignHCenter
+                                elide: Text.ElideRight
+                                text: meeting.feedLabel || ""
+                                color: (root.useCalendarColors && meeting.calendarColor)
+                                  ? meeting.calendarColor
+                                  : Qt.darker(root.contentForeground, 1.25)
+                                font.family: root.contentFontFamily
+                                font.pixelSize: Style.font.caption
+                              }
+                            }
 
                             Text {
-                              id: tagText
-                              anchors.centerIn: parent
-                              text: meeting.feedLabel || ""
-                              color: Qt.darker(root.contentForeground, 1.25)
+                              Layout.fillWidth: true
+                              text: meeting.title || "(Untitled)"
+                              color: root.contentForeground
                               font.family: root.contentFontFamily
-                              font.pixelSize: Style.font.caption
+                              font.pixelSize: Style.font.body
+                              elide: Text.ElideRight
+                              maximumLineCount: 1
                             }
                           }
 
                           Text {
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignVCenter
-                            text: meeting.title || "(Untitled)"
-                            color: root.contentForeground
-                            font.family: root.contentFontFamily
-                            font.pixelSize: Style.font.body
-                            elide: Text.ElideRight
-                            maximumLineCount: 1
-                          }
-
-                          Text {
-                            Layout.alignment: Qt.AlignVCenter
+                            Layout.alignment: tagPill.visible ? Qt.AlignTop : Qt.AlignVCenter
+                            Layout.topMargin: tagPill.visible ? Style.space(1) : 0
                             Layout.preferredWidth: Style.space(34)
                             horizontalAlignment: Text.AlignRight
                             text: Model.formatDuration(meeting.start, meeting.end)
@@ -720,7 +764,8 @@ Panel {
                           }
 
                           Text {
-                            Layout.alignment: Qt.AlignVCenter
+                            Layout.alignment: tagPill.visible ? Qt.AlignTop : Qt.AlignVCenter
+                            Layout.topMargin: tagPill.visible ? Style.space(1) : 0
                             Layout.preferredWidth: Style.space(16)
                             horizontalAlignment: Text.AlignRight
                             text: meeting.meetUrl ? "" : "󰃯"

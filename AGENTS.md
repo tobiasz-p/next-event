@@ -6,33 +6,34 @@ lets you click to join Google Meet. NOT a Node app — the runtime is QML.
 ## Architecture
 
 - `manifest.json` is the plugin descriptor; `entryPoints.barWidget` = `BarWidget.qml`. `kinds: ["bar-widget"]`.
-- QML layer: `BarWidget.qml` (bar widget, ~276 lines) and `Panel.qml` (agenda panel, ~532 lines). These own all Qt/Quickshell UI, fetching (Quickshell.Io), and widget settings.
-- `Model.js` is the pure-JS core: iCalendar parsing, RRULE/DTSTART recurrence expansion, VTIMEZONE/DST handling, display labels. No Qt/Quickshell imports.
-- Model.js is loaded two ways: QML does `import "Model.js" as Model`; a Node runtime does `require("./Model.js")`. Keep every function top-level (QML exposes them directly) and keep the `module.exports` guard at the bottom — the guard is what makes it require-able in Node.
+- QML layer: `BarWidget.qml` (bar widget) and `Panel.qml` (agenda popup), decomposed into modular QML components under `components/` (`HeaderBar.qml`, `HeroCard.qml`, `ScheduleGroup.qml`, `ScheduleRow.qml`, `CalendarBadge.qml`, `SetupGuide.qml`, `SetupCard.qml`, `EmptySchedule.qml`). These own all Qt/Quickshell UI, fetching (Quickshell.Io), and widget settings.
+- `Model.js` is the pure-JS core and single source of truth: iCalendar parsing, RRULE/DTSTART recurrence expansion, VTIMEZONE/DST handling, display labels, domain classes (`CalendarEvent`, `TimezoneResolver`, `RecurrenceRule`, `RecurrenceExpander`, `MeetingLinkDetector`, `IcsParser`, `JsonStateParser`, `FeedConfigParser`, `ScheduleAggregator`, `DisplayFormatter`, `PanelNavigationModel`), and navigation. No Qt/Quickshell imports.
+- `Model.js` is imported two ways: QML does `import "Model.js" as Model`; Node does `require("./Model.js")` for tests. Keep every constant and helper function top-level (QML exposes them directly) and keep the `module.exports` guard at the bottom — the guard is what makes it require-able in Node.
 
-## Critical runtime constraint
+## Critical runtime constraints
 
-- QML's V4 engine has **no `Intl`**. Model.js must work without it. Timezone resolution order is: VTIMEZONE table → `Intl` if the engine has it → naive local fallback. Do not add `Intl`-dependent logic to Model.js without a fallback.
-- TZID table (`TZ_TABLE`) is reset at the start of every `parseIcs`/`registerVTimezones`. A feed that drops a zone must not resolve against stale data; don't make the table accumulate across parses.
-- Keep Model.js dependency-free (pure). The QML sandbox cannot load npm packages; runtime deps are not possible.
+- QML's V4 engine has **no `Intl`**. Model.js must work without it. Timezone resolution order is: VTIMEZONE table → `Intl` if the engine has it → naive local fallback. Do not add `Intl`-dependent logic to Model.js without a fallback (there is a dedicated test simulating the no-Intl engine).
+- TZID table is reset at the start of every `parseIcs`/`registerVTimezones`. A feed that drops a zone must not resolve against stale data — this is a tested invariant; don't make the table accumulate across parses.
+- Keep `Model.js` dependency-free (pure). The QML sandbox cannot load npm packages; runtime deps are not possible.
 
-## Tests
+## Tests & Tooling
 
 ```sh
-npm test          # node --test "test/*.test.js"
+npm test          # node --test test/*.test.js
+npm run lint      # eslint .
+npm run format    # prettier --write .
 ```
 
-One suite: `test/meeting-links.test.js`. It covers the `VIDEO_PROVIDERS` table,
-`findMeetUrl`, `meetLabel`, and every ICS property a join link can arrive in
-(`LOCATION`, `DESCRIPTION`, `CONFERENCE`, `X-GOOGLE-CONFERENCE`,
-`X-MICROSOFT-SKYPETEAMSMEETINGURL`). Several fixtures are modelled on real
-Outlook, Webex and GoTo invite bodies with identifiers replaced — the decoy
-links they carry (`meetingOptions`, dial-in helpers, Teams/Webex interop) are
-why the provider patterns restrict paths instead of matching on host alone.
-Add new meeting-link cases to this file using the existing `feed()`/`parseOne()`
-helpers. No lint, formatter, or typecheck is configured.
+Comprehensive test suites in `test/*.test.js` cover:
+- `TimezoneResolver`: `parseTzOffset`, VTIMEZONE DST transitions (BYDAY incl. negative ordinals, BYMONTHDAY), `zonedToUtc` round-trips against the system tz database, no-Intl fallback, and per-parse table reset.
+- `MeetingLinkDetector`: `VIDEO_PROVIDERS` patterns, `findMeetUrl`, `meetLabel`, and decoy link rejection across Meet, Zoom, Teams, Webex, and GoTo fixtures.
+- `IcsParser` & `RecurrenceExpander`: iCalendar unfolding, unescaping, RFC 5545 recurrence rules (`DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`), EXDATE exclusions, and RECURRENCE-ID overrides.
+- `JsonStateParser`: Omarchy local sync JSON parsing, declined invite filtering, and date parsing.
+- `ScheduleAggregator`: Event sorting, upcoming/ongoing buckets, all-day vs timed event prioritization, and day grouping.
+- `DisplayFormatter`: Header status, countdown strings, duration formatting, and tooltip generation.
+- `PanelNavigationModel`: Keyboard and hover cursor indexing.
 
-Tests cover Model.js only; the QML layer has no automated coverage.
+Tests cover domain JS only; the QML layer has no automated coverage.
 
 ## Workflow conventions
 

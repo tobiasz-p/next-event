@@ -21,53 +21,31 @@ BarWidget {
   // (comma-separated), or a JSON array of strings / { url, label } objects.
   readonly property var icsFeeds: Model.splitIcsFeeds(setting("icsUrl", ""))
   readonly property string eventsJsonPath: String(setting("eventsJsonPath", (Quickshell.env("HOME") || "") + "/.local/state/omarchy/calendar-events.json") || "").trim()
-  readonly property string sourceMode: icsFeeds.length > 0 ? "ics" : "json"
-  readonly property int refreshMinutes: Math.max(1, parseInt(setting("refreshMinutes", 5), 10) || 5)
-  readonly property int showDaysAhead: Math.max(1, parseInt(setting("showDaysAhead", 3), 10) || 3)
-  readonly property int maxTitleLength: Math.max(8, parseInt(setting("maxTitleLength", 28), 10) || 28)
-  readonly property int maxFeedSizeMiB: Math.max(1, parseInt(setting("maxFeedSizeMiB", 10), 10) || 10)
-  readonly property bool showOnlyWithVideoLink: {
-    var v = setting("showOnlyWithVideoLink", false)
-    if (v === undefined || v === null) return false
-    if (v === true || v === 1 || v === "1" || v === "true") return true
-    if (v === false || v === 0 || v === "0" || v === "false") return false
-    return false
-  }
-  readonly property bool showCalendarLabel: {
-    var v = setting("showCalendarLabel", true)
-    if (v === undefined || v === null) return true
-    if (v === false || v === 0 || v === "0" || v === "false") return false
-    return true
-  }
-  readonly property bool useCalendarColors: {
-    var v = setting("useCalendarColors", true)
-    if (v === undefined || v === null) return true
-    if (v === false || v === 0 || v === "0" || v === "false") return false
-    return true
-  }
-  readonly property bool colorOnBar: {
-    var v = setting("colorOnBar", false)
-    if (v === undefined || v === null) return false
-    if (v === true || v === 1 || v === "1" || v === "true") return true
-    if (v === false || v === 0 || v === "0" || v === "false") return false
-    return false
-  }
+  readonly property string sourceMode: icsFeeds.length > 0 ? Model.SOURCE_MODE_ICS : Model.SOURCE_MODE_JSON
+  readonly property int refreshMinutes: Math.max(1, parseInt(setting("refreshMinutes", Model.DEFAULT_REFRESH_MINUTES), 10) || Model.DEFAULT_REFRESH_MINUTES)
+  readonly property int showDaysAhead: Math.max(1, parseInt(setting("showDaysAhead", Model.DEFAULT_LOOKAHEAD_DAYS), 10) || Model.DEFAULT_LOOKAHEAD_DAYS)
+  readonly property int maxTitleLength: Math.max(Model.MIN_MAX_TITLE_LENGTH, parseInt(setting("maxTitleLength", Model.DEFAULT_MAX_TITLE_LENGTH), 10) || Model.DEFAULT_MAX_TITLE_LENGTH)
+  readonly property int maxFeedSizeMiB: Math.max(1, parseInt(setting("maxFeedSizeMiB", Model.DEFAULT_MAX_FEED_SIZE_MIB), 10) || Model.DEFAULT_MAX_FEED_SIZE_MIB)
+  readonly property bool showOnlyWithVideoLink: Model.toBoolean(setting("showOnlyWithVideoLink", false), false)
+  readonly property bool showCalendarLabel: Model.toBoolean(setting("showCalendarLabel", true), true)
+  readonly property bool useCalendarColors: Model.toBoolean(setting("useCalendarColors", true), true)
+  readonly property bool colorOnBar: Model.toBoolean(setting("colorOnBar", false), false)
   readonly property string browserCommand: String(setting("browserCommand", "") || "").trim()
   // Base for "Open in Calendar". Defaults to the signed-in account; set to
   // e.g. "https://calendar.google.com/calendar/u/2" to open a specific
   // account (matches the u/N in your browser's calendar URL).
-  readonly property string calendarUrlBase: String(setting("calendarUrlBase", "https://calendar.google.com/calendar") || "").trim()
+  readonly property string calendarUrlBase: String(setting("calendarUrlBase", Model.DEFAULT_CALENDAR_URL_BASE) || "").trim()
   // Single-key panel shortcuts (text keys while the panel is focused).
   // Arrows and j/k/h/l are reserved by the shell's key catcher for
   // navigation, so those letters would be dead config here.
-  readonly property string keyRefresh: Model.normalizeKey(setting("keyRefresh", "r"), "r")
-  readonly property string keyJoin: Model.normalizeKey(setting("keyJoin", "m"), "m")
-  readonly property string keyCalendar: Model.normalizeKey(setting("keyCalendar", "o"), "o")
+  readonly property string keyRefresh: Model.normalizeKey(setting("keyRefresh", Model.DEFAULT_KEY_REFRESH), Model.DEFAULT_KEY_REFRESH)
+  readonly property string keyJoin: Model.normalizeKey(setting("keyJoin", Model.DEFAULT_KEY_JOIN), Model.DEFAULT_KEY_JOIN)
+  readonly property string keyCalendar: Model.normalizeKey(setting("keyCalendar", Model.DEFAULT_KEY_CALENDAR), Model.DEFAULT_KEY_CALENDAR)
 
   // ---- internal limits
-  readonly property int maxRawEvents: 80
-  readonly property int maxMeetingRows: 8
-  readonly property int maxScheduleRows: 20
+  readonly property int maxRawEvents: Model.DEFAULT_MAX_EVENTS
+  readonly property int maxMeetingRows: Model.DEFAULT_MAX_MEETING_ROWS
+  readonly property int maxScheduleRows: Model.DEFAULT_MAX_ROWS
 
   // ---- state
   property bool jsonLoaded: false
@@ -94,9 +72,7 @@ BarWidget {
   property string currentFeedLabel: ""
   property string feedOutput: ""
 
-  readonly property string label: configured && nextMeeting
-    ? (nextMeeting.meetUrl ? "  " : "󰃯  ") + Model.formatLabel(nextMeeting, root.now, maxTitleLength)
-    : ""
+  readonly property string label: Model.barLabel(root.configured, root.nextMeeting, root.now, root.maxTitleLength)
   readonly property bool inMeeting: nextMeeting
     && !nextMeeting.allDay
     && nextMeeting.start && nextMeeting.end
@@ -165,7 +141,7 @@ BarWidget {
       return
     }
     fetchProc.stdinEnabled = true
-    fetchProc.command = ["curl", "-fsSL", "--max-time", "15", "--max-filesize", String(root.maxFeedSizeMiB * 1024 * 1024), "-K", "-"]
+    fetchProc.command = ["curl", "-fsSL", "--max-time", String(Model.FETCH_TIMEOUT_SECONDS), "--max-filesize", String(root.maxFeedSizeMiB * Model.BYTES_PER_MIB), "-K", "-"]
     fetchProc.running = true
   }
 
@@ -194,37 +170,41 @@ BarWidget {
     root.startNextFetch()
   }
 
+  function applyScheduleState(events, lastUpdatedDate) {
+    root.rawEvents = events || []
+    var state = Model.computeScheduleState(root.rawEvents, root.now, {
+      lookaheadDays: root.showDaysAhead,
+      showOnlyWithVideoLink: root.showOnlyWithVideoLink,
+      maxMeetingRows: root.maxMeetingRows,
+      maxScheduleRows: root.maxScheduleRows
+    })
+    root.meetings = state.meetings
+    root.upcomingToday = state.upcomingToday
+    root.scheduleGroups = state.scheduleGroups
+    root.nextMeeting = state.nextMeeting
+    if (lastUpdatedDate) root.lastUpdated = lastUpdatedDate
+    root.meetingDataChanged()
+  }
+
   function finishFetch() {
     root.offlineFeedCount = root.failedFeeds.length
 
-    var all = []
-    for (var c = 0; c < root.feedChunks.length; c++) {
-      all = all.concat(root.feedChunks[c])
+    var allEvents = []
+    for (var chunkIndex = 0; chunkIndex < root.feedChunks.length; chunkIndex++) {
+      allEvents = allEvents.concat(root.feedChunks[chunkIndex])
     }
-    var events = Model.dedupeEvents(all)
-    root.rawEvents = events
+    var events = Model.dedupeEvents(allEvents)
 
     if (events.length === 0 && root.offlineFeedCount > 0 && root.feedChunks.length === 0) {
       // Every feed failed: no data at all.
+      root.rawEvents = []
       root.lastFetchFailed = true
       root.meetingDataChanged()
       return
     }
 
-    root.meetings = Model.buildUpcoming(events, root.now, {
-      lookaheadDays: root.showDaysAhead,
-      showOnlyWithVideoLink: root.showOnlyWithVideoLink,
-      maxRows: root.maxMeetingRows
-    })
-    root.upcomingToday = Model.upcomingToday(events, root.now)
-    root.scheduleGroups = Model.buildScheduleGroups(events, root.now, {
-      lookaheadDays: root.showDaysAhead,
-      maxRows: root.maxScheduleRows
-    })
-    root.nextMeeting = root.meetings.length > 0 ? root.meetings[0] : null
-    root.lastUpdated = new Date()
     root.lastFetchFailed = false
-    root.meetingDataChanged()
+    root.applyScheduleState(events, new Date())
   }
 
   function onJsonData(raw) {
@@ -235,45 +215,16 @@ BarWidget {
       now: root.now
     })
     root.jsonLoaded = true
-    root.rawEvents = parsed.events
-    root.meetings = Model.buildUpcoming(root.rawEvents, root.now, {
-      lookaheadDays: root.showDaysAhead,
-      showOnlyWithVideoLink: root.showOnlyWithVideoLink,
-      maxRows: root.maxMeetingRows
-    })
-    root.upcomingToday = Model.upcomingToday(root.rawEvents, root.now)
-    root.scheduleGroups = Model.buildScheduleGroups(root.rawEvents, root.now, {
-      lookaheadDays: root.showDaysAhead,
-      maxRows: root.maxScheduleRows
-    })
-    root.nextMeeting = root.meetings.length > 0 ? root.meetings[0] : null
-    root.lastUpdated = parsed.syncedAt ? new Date(parsed.syncedAt) : new Date()
     root.lastFetchFailed = false
-    root.meetingDataChanged()
+    root.applyScheduleState(parsed.events, parsed.syncedAt ? new Date(parsed.syncedAt) : new Date())
   }
-
 
   function refresh() {
     fetchCalendar()
   }
 
   function recalc() {
-    if (root.rawEvents && root.rawEvents.length > 0) {
-      root.meetings = Model.buildUpcoming(root.rawEvents, root.now, {
-        lookaheadDays: root.showDaysAhead,
-        showOnlyWithVideoLink: root.showOnlyWithVideoLink,
-        maxRows: root.maxMeetingRows
-      })
-      root.upcomingToday = Model.upcomingToday(root.rawEvents, root.now)
-      root.scheduleGroups = Model.buildScheduleGroups(root.rawEvents, root.now, {
-        lookaheadDays: root.showDaysAhead,
-        maxRows: root.maxScheduleRows
-      })
-      root.nextMeeting = root.meetings.length > 0 ? root.meetings[0] : null
-    } else {
-      root.nextMeeting = root.meetings.length > 0 ? root.meetings[0] : null
-    }
-    root.meetingDataChanged()
+    root.applyScheduleState(root.rawEvents, null)
   }
 
   signal meetingDataChanged()
@@ -401,7 +352,7 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.label !== "" ? root.label : "󰃲"
+    text: root.label !== "" ? root.label : Model.ICON_CALENDAR_EMPTY
     foreground: root.useCalendarColors && root.colorOnBar && root.nextMeeting && root.nextMeeting.calendarColor
       ? root.nextMeeting.calendarColor
       : (root.bar ? root.bar.barForeground : Color.foreground)
@@ -426,21 +377,9 @@ BarWidget {
     }
   }
 
-  readonly property string tooltipLine: {
-    if (!root.configured) return "NextEvent — No calendar configured\nClick to set up"
-    if (!root.nextMeeting) {
-      if (root.lastFetchFailed) return "NextEvent — No upcoming events (offline)"
-      if (root.offlineFeedCount > 0)
-        return "NextEvent — No upcoming events · " + root.offlineFeedCount + " calendar" + (root.offlineFeedCount > 1 ? "s" : "") + " offline"
-      return "NextEvent — No upcoming events"
-    }
-    var title = root.nextMeeting.title || "(Untitled)"
-    var range = Model.timeRange(root.nextMeeting.start, root.nextMeeting.end, root.nextMeeting.allDay)
-    var status = Model.relativeStatus(root.nextMeeting, root.now)
-    var line = title + " · " + range + (status ? " (" + status + ")" : "")
-    if (root.showCalendarLabel && root.nextMeeting.feedLabel) line = root.nextMeeting.feedLabel + " · " + line
-    if (root.lastFetchFailed) line += " · Offline"
-    else if (root.offlineFeedCount > 0) line += " · " + root.offlineFeedCount + " calendar" + (root.offlineFeedCount > 1 ? "s" : "") + " offline"
-    return line
-  }
+  readonly property string tooltipLine: Model.tooltipLine(root.configured, root.nextMeeting, root.now, {
+    lastFetchFailed: root.lastFetchFailed,
+    offlineFeedCount: root.offlineFeedCount,
+    showCalendarLabel: root.showCalendarLabel
+  })
 }

@@ -17,19 +17,21 @@ BarWidget {
   moduleName: "tobiasz-p.next-event"
 
   // ---- settings (shell.json layout entry, `omarchy bar set`)
-  // icsUrl is now a feed list: "url", "url1,url2", "label|url" per feed
+  // icsUrl is a feed list: "url", "url1,url2", "label|url" per feed
   // (comma-separated), or a JSON array of strings / { url, label } objects.
   readonly property var icsFeeds: Model.splitIcsFeeds(setting("icsUrl", ""))
+  readonly property string eventsJsonPath: String(setting("eventsJsonPath", (Quickshell.env("HOME") || "") + "/.local/state/omarchy/calendar-events.json") || "").trim()
+  readonly property string sourceMode: icsFeeds.length > 0 ? "ics" : "json"
   readonly property int refreshMinutes: Math.max(1, parseInt(setting("refreshMinutes", 5), 10) || 5)
   readonly property int showDaysAhead: Math.max(1, parseInt(setting("showDaysAhead", 3), 10) || 3)
   readonly property int maxTitleLength: Math.max(8, parseInt(setting("maxTitleLength", 28), 10) || 28)
   readonly property int maxFeedSizeMiB: Math.max(1, parseInt(setting("maxFeedSizeMiB", 10), 10) || 10)
   readonly property bool showOnlyWithVideoLink: {
-    var v = setting("showOnlyWithVideoLink", true)
-    if (v === undefined || v === null) return true
-    if (v === true || v === 1 || v === "1") return true
-    if (v === false || v === 0 || v === "0") return false
-    return String(v).toLowerCase() !== "false"
+    var v = setting("showOnlyWithVideoLink", false)
+    if (v === undefined || v === null) return false
+    if (v === true || v === 1 || v === "1" || v === "true") return true
+    if (v === false || v === 0 || v === "0" || v === "false") return false
+    return false
   }
   readonly property string browserCommand: String(setting("browserCommand", "") || "").trim()
   // Base for "Open in Calendar". Defaults to the signed-in account; set to
@@ -43,8 +45,15 @@ BarWidget {
   readonly property string keyJoin: Model.normalizeKey(setting("keyJoin", "m"), "m")
   readonly property string keyCalendar: Model.normalizeKey(setting("keyCalendar", "o"), "o")
 
+  // ---- internal limits
+  readonly property int maxRawEvents: 80
+  readonly property int maxMeetingRows: 8
+  readonly property int maxScheduleRows: 20
+
   // ---- state
-  readonly property bool configured: icsFeeds.length > 0
+  property bool jsonLoaded: false
+  readonly property bool configured: (icsFeeds.length > 0) || jsonLoaded || (rawEvents && rawEvents.length > 0)
+  onSourceModeChanged: { jsonLoaded = false }
   property var rawEvents: []
   property var meetings: []
   property var upcomingToday: []
@@ -55,7 +64,7 @@ BarWidget {
   // Number of feeds that failed on the last fetch while *some* succeeded;
   // 0 means all known feeds responded. Used for a partial-offline status.
   property int offlineFeedCount: 0
-  readonly property bool fetching: fetchProc.running
+  readonly property bool fetching: fetchProc.running || syncProc.running
   property date now: new Date()
 
   // Internal fetch-loop state (populated by fetchCalendar).
@@ -104,17 +113,21 @@ BarWidget {
   // take down the whole widget: the rest still render, and the failed count is
   // surfaced as a partial-offline status.
   function fetchCalendar() {
-    if (!root.configured || fetchProc.running) return
-    root.pendingFeeds = root.icsFeeds.slice()
-    root.feedChunks = []
-    root.failedFeeds = []
-    root.offlineFeedCount = 0
-    if (root.pendingFeeds.length === 0) {
-      root.lastFetchFailed = false
-      root.meetingDataChanged()
-      return
+    if (root.sourceMode === "ics") {
+      if (!root.configured || fetchProc.running) return
+      root.pendingFeeds = root.icsFeeds.slice()
+      root.feedChunks = []
+      root.failedFeeds = []
+      root.offlineFeedCount = 0
+      if (root.pendingFeeds.length === 0) {
+        root.lastFetchFailed = false
+        root.meetingDataChanged()
+        return
+      }
+      root.startNextFetch()
+    } else {
+      if (!syncProc.running) syncProc.running = true
     }
-    root.startNextFetch()
   }
 
   function startNextFetch() {
@@ -181,18 +194,44 @@ BarWidget {
     root.meetings = Model.buildUpcoming(events, root.now, {
       lookaheadDays: root.showDaysAhead,
       showOnlyWithVideoLink: root.showOnlyWithVideoLink,
-      maxRows: 8
+      maxRows: root.maxMeetingRows
     })
     root.upcomingToday = Model.upcomingToday(events, root.now)
     root.scheduleGroups = Model.buildScheduleGroups(events, root.now, {
       lookaheadDays: root.showDaysAhead,
-      maxRows: 20
+      maxRows: root.maxScheduleRows
     })
     root.nextMeeting = root.meetings.length > 0 ? root.meetings[0] : null
     root.lastUpdated = new Date()
     root.lastFetchFailed = false
     root.meetingDataChanged()
   }
+
+  function onJsonData(raw) {
+    var text = String(raw || "").trim()
+    if (!text) return
+    var parsed = Model.parseJsonState(text, {
+      lookaheadDays: root.showDaysAhead + 1,
+      now: root.now
+    })
+    root.jsonLoaded = true
+    root.rawEvents = parsed.events
+    root.meetings = Model.buildUpcoming(root.rawEvents, root.now, {
+      lookaheadDays: root.showDaysAhead,
+      showOnlyWithVideoLink: root.showOnlyWithVideoLink,
+      maxRows: root.maxMeetingRows
+    })
+    root.upcomingToday = Model.upcomingToday(root.rawEvents, root.now)
+    root.scheduleGroups = Model.buildScheduleGroups(root.rawEvents, root.now, {
+      lookaheadDays: root.showDaysAhead,
+      maxRows: root.maxScheduleRows
+    })
+    root.nextMeeting = root.meetings.length > 0 ? root.meetings[0] : null
+    root.lastUpdated = parsed.syncedAt ? new Date(parsed.syncedAt) : new Date()
+    root.lastFetchFailed = false
+    root.meetingDataChanged()
+  }
+
 
   function refresh() {
     fetchCalendar()
@@ -203,12 +242,12 @@ BarWidget {
       root.meetings = Model.buildUpcoming(root.rawEvents, root.now, {
         lookaheadDays: root.showDaysAhead,
         showOnlyWithVideoLink: root.showOnlyWithVideoLink,
-        maxRows: 8
+        maxRows: root.maxMeetingRows
       })
       root.upcomingToday = Model.upcomingToday(root.rawEvents, root.now)
       root.scheduleGroups = Model.buildScheduleGroups(root.rawEvents, root.now, {
         lookaheadDays: root.showDaysAhead,
-        maxRows: 20
+        maxRows: root.maxScheduleRows
       })
       root.nextMeeting = root.meetings.length > 0 ? root.meetings[0] : null
     } else {
@@ -282,6 +321,34 @@ BarWidget {
       root.now = new Date()
       root.recalc()
     }
+  }
+
+  FileView {
+    id: jsonFileView
+    path: root.sourceMode === "json" ? root.eventsJsonPath : ""
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.onJsonData(text())
+    onLoadFailed: function(error) {
+      console.warn("NextEvent: eventsJson load failed: " + error + " path=" + root.eventsJsonPath)
+    }
+    onFileChanged: reload()
+  }
+
+  Process {
+    id: syncProc
+    command: [Qt.resolvedUrl("sync/next-event-sync").toString().replace("file://", "")]
+    onExited: function(exitCode) {
+      if (exitCode !== 0) {
+        console.warn("next-event-sync exited with code", exitCode)
+      } else {
+        jsonFileView.reload()
+      }
+    }
+  }
+
+  Component.onCompleted: {
+    Qt.callLater(root.fetchCalendar)
   }
 
   Process {

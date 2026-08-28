@@ -276,67 +276,128 @@ Panel {
             Column {
               id: setupColumn
               width: parent.width
-              spacing: Style.space(8)
+              spacing: Style.space(12)
 
-              Text {
+              Column {
                 width: parent.width
-                text: "Connect Google Calendar"
-                color: root.contentForeground
-                font.family: root.contentFontFamily
-                font.pixelSize: Style.font.subtitle
-                font.bold: true
-                wrapMode: Text.WordWrap
+                spacing: Style.space(4)
+
+                Text {
+                  width: parent.width
+                  text: "Connect Your Calendar"
+                  color: root.contentForeground
+                  font.family: root.contentFontFamily
+                  font.pixelSize: Style.font.subtitle
+                  font.bold: true
+                  wrapMode: Text.WordWrap
+                }
+
+                Text {
+                  width: parent.width
+                  text: "Choose the method that matches your calendar provider:"
+                  color: Qt.darker(root.contentForeground, 1.35)
+                  font.family: root.contentFontFamily
+                  font.pixelSize: Style.font.bodySmall
+                  wrapMode: Text.WordWrap
+                }
               }
 
-              Text {
+              // Option 1: Google Workspace / OAuth
+              Column {
                 width: parent.width
-                text: "1. In Google Calendar: Settings → your calendar → \"Integrate calendar\""
-                color: Qt.darker(root.contentForeground, 1.35)
-                font.family: root.contentFontFamily
-                font.pixelSize: Style.font.bodySmall
-                wrapMode: Text.WordWrap
+                spacing: Style.space(6)
+
+                Text {
+                  width: parent.width
+                  text: "Option 1: Google Workspace / OAuth (Work accounts)"
+                  color: Color.accent
+                  font.family: root.contentFontFamily
+                  font.pixelSize: Style.font.body
+                  font.bold: true
+                  wrapMode: Text.WordWrap
+                }
+
+                Text {
+                  width: parent.width
+                  text: "If your organization disables private iCal URLs, run the interactive OAuth setup:"
+                  color: Qt.darker(root.contentForeground, 1.35)
+                  font.family: root.contentFontFamily
+                  font.pixelSize: Style.font.caption
+                  wrapMode: Text.WordWrap
+                }
+
+                BorderSurface {
+                  width: parent.width
+                  radius: Style.cornerRadius
+                  color: Style.normalFillFor(root.contentForeground, Color.accent)
+                  borderSpec: Border.controlSpec("normal", root.contentForeground, Color.accent)
+                  implicitHeight: oauthCol.implicitHeight + Style.space(12)
+
+                  Column {
+                    id: oauthCol
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.margins: Style.space(8)
+
+                    Text {
+                      width: parent.width
+                      text: "~/.config/omarchy/plugins/tobiasz-p.next-event/sync/setup"
+                      font.family: "monospace"
+                      font.pixelSize: Style.font.caption
+                      color: root.contentForeground
+                      wrapMode: Text.WrapAnywhere
+                    }
+                  }
+                }
               }
 
-              Text {
+              // Option 2: iCal URL
+              Column {
                 width: parent.width
-                text: "2. Copy the \"Secret address in iCal format\" URL"
-                color: Qt.darker(root.contentForeground, 1.35)
-                font.family: root.contentFontFamily
-                font.pixelSize: Style.font.bodySmall
-                wrapMode: Text.WordWrap
-              }
+                spacing: Style.space(6)
 
-              Text {
-                width: parent.width
-                text: "3. Run in your terminal:"
-                color: Qt.darker(root.contentForeground, 1.35)
-                font.family: root.contentFontFamily
-                font.pixelSize: Style.font.bodySmall
-                wrapMode: Text.WordWrap
-              }
+                Text {
+                  width: parent.width
+                  text: "Option 2: Private iCal (.ics) Feed URL"
+                  color: root.contentForeground
+                  font.family: root.contentFontFamily
+                  font.pixelSize: Style.font.body
+                  font.bold: true
+                  wrapMode: Text.WordWrap
+                }
 
-              BorderSurface {
-                width: parent.width
-                radius: Style.cornerRadius
-                color: Style.normalFillFor(root.contentForeground, Color.accent)
-                borderSpec: Border.controlSpec("normal", root.contentForeground, Color.accent)
-                implicitHeight: cmdCol.implicitHeight + Style.space(16)
+                Text {
+                  width: parent.width
+                  text: "For personal Google Calendar, Outlook, iCloud, or Nextcloud:"
+                  color: Qt.darker(root.contentForeground, 1.35)
+                  font.family: root.contentFontFamily
+                  font.pixelSize: Style.font.caption
+                  wrapMode: Text.WordWrap
+                }
 
-                Column {
-                  id: cmdCol
-                  anchors.left: parent.left
-                  anchors.right: parent.right
-                  anchors.verticalCenter: parent.verticalCenter
-                  anchors.margins: Style.space(8)
-                  spacing: Style.space(2)
+                BorderSurface {
+                  width: parent.width
+                  radius: Style.cornerRadius
+                  color: Style.normalFillFor(root.contentForeground, Color.accent)
+                  borderSpec: Border.controlSpec("normal", root.contentForeground, Color.accent)
+                  implicitHeight: icsCol.implicitHeight + Style.space(12)
 
-                  Text {
-                    width: parent.width
-                    text: "omarchy bar set tobiasz-p.next-event icsUrl '<iCal-url>'"
-                    font.family: "monospace"
-                    font.pixelSize: Style.font.caption
-                    color: root.contentForeground
-                    wrapMode: Text.WrapAnywhere
+                  Column {
+                    id: icsCol
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.margins: Style.space(8)
+
+                    Text {
+                      width: parent.width
+                      text: "omarchy bar set tobiasz-p.next-event icsUrl '<iCal-url>'"
+                      font.family: "monospace"
+                      font.pixelSize: Style.font.caption
+                      color: root.contentForeground
+                      wrapMode: Text.WrapAnywhere
+                    }
                   }
                 }
               }
@@ -398,10 +459,10 @@ Panel {
                     Text {
                       id: heroTagText
                       anchors.centerIn: parent
-                      text: root.next ? root.next.feedLabel : ""
                       color: root.inMeeting ? Color.accent : Qt.darker(root.contentForeground, 1.3)
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
+                      text: root.next ? (root.next.feedLabel || "") : ""
                     }
                   }
 
@@ -411,7 +472,7 @@ Panel {
                       var parts = []
                       var dur = root.next ? Model.formatDuration(root.next.start, root.next.end) : ""
                       if (dur) parts.push(dur)
-                      if (root.next) parts.push(root.next.meetUrl ? "  " + Model.meetLabel(root.next.meetUrl) : "󰃯  Event")
+                      if (root.next) parts.push(root.next.meetUrl ? "  " + Model.meetLabel(root.next.meetUrl) : "󰃯  Event")
                       return parts.join("  ·  ")
                     }
                     color: root.inMeeting ? Color.accent : Qt.darker(root.contentForeground, 1.4)

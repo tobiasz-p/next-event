@@ -6,9 +6,7 @@
   "author": "tobiasz-p",
   "license": "MIT",
   "description": "Next event in the bar — Google Calendar feed, click to join Google Meet.",
-  "kinds": [
-    "bar-widget"
-  ],
+  "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "BarWidget.qml"
   },

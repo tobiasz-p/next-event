@@ -1,0 +1,8 @@
+CalendarBadge 1.0 CalendarBadge.qml
+EmptySchedule 1.0 EmptySchedule.qml
+HeaderBar 1.0 HeaderBar.qml
+HeroCard 1.0 HeroCard.qml
+ScheduleGroup 1.0 ScheduleGroup.qml
+ScheduleRow 1.0 ScheduleRow.qml
+SetupCard 1.0 SetupCard.qml
+SetupGuide 1.0 SetupGuide.qml

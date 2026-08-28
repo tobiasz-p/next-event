@@ -1,5 +1,12 @@
 # NextEvent
 
+[![CI](https://github.com/tobiasz-p/next-event/actions/workflows/ci.yml/badge.svg)](https://github.com/tobiasz-p/next-event/actions/workflows/ci.yml)
+[![Omarchy Marketplace](https://img.shields.io/badge/Marketplace-tobiasz--p.next--event-7c3aed)](https://omarchyplugins.com/plugin.html?id=tobiasz-p.next-event)
+[![Omarchy](https://img.shields.io/badge/Omarchy-Platform-1793d1)](https://omarchy.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![ESLint](https://img.shields.io/badge/linter-eslint-4B32C3.svg?logo=eslint&logoColor=white)](https://eslint.org)
+[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?logo=prettier&logoColor=white)](https://github.com/prettier/prettier)
+
 Next event, right in the bar — native to your Omarchy shell. Shows the next
 upcoming event from your calendar with live countdowns and lets you join video calls (Google Meet, Zoom, Teams, Webex, GoToMeeting) with a single click.
 

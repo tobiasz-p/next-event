@@ -1,0 +1,112 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Omarchy//NextEvent Visual Regression Fixture//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Work Calendar
+
+BEGIN:VEVENT
+UID:demo-live-now@next-event
+SUMMARY:Live Incident Response & Team Sync
+DTSTART:20260828T123606Z
+DTEND:20260828T133606Z
+DESCRIPTION:Active incident sync room.\nJoin video: https://meet.google.com/qrs-tuvw-xyz
+LOCATION:https://meet.google.com/qrs-tuvw-xyz
+STATUS:CONFIRMED
+END:VEVENT
+
+BEGIN:VEVENT
+UID:demo-meet-today@next-event
+SUMMARY:Product Strategy & Roadmap Review
+DTSTART:20260828T140106Z
+DTEND:20260828T150106Z
+DESCRIPTION:Quarterly review.\nJoin Google Meet: https://meet.google.com/abc-defg-hij
+LOCATION:Room 402 / https://meet.google.com/abc-defg-hij
+STATUS:CONFIRMED
+END:VEVENT
+
+BEGIN:VEVENT
+UID:demo-zoom-today@next-event
+SUMMARY:Architecture Advisory Board (Security & Infra)
+DTSTART:20260828T153106Z
+DTEND:20260828T161606Z
+DESCRIPTION:External partner sync.\nZoom: https://us02web.zoom.us/j/9876543210?pwd=SecurePassword123
+CONFERENCE:https://us02web.zoom.us/j/9876543210?pwd=SecurePassword123
+STATUS:CONFIRMED
+END:VEVENT
+
+BEGIN:VEVENT
+UID:demo-teams-today@next-event
+SUMMARY:Client Demo & Executive Briefing
+DTSTART:20260828T170106Z
+DTEND:20260828T173106Z
+DESCRIPTION:Click to join: <https://teams.microsoft.com/l/meetup-join/19%3ameeting_NmYxZTgz%40thread.v2/0?context=%7b%22Tid%22%3a%22abc%22%7d>\nMeeting options <https://teams.microsoft.com/meetingOptions/?organizerId=abc>
+STATUS:CONFIRMED
+END:VEVENT
+
+BEGIN:VEVENT
+UID:demo-evening-today@next-event
+SUMMARY:Team Dinner & Social Gathering
+DTSTART:20260828T180000Z
+DTEND:20260828T193000Z
+LOCATION:Downtown Bistro, 4th Avenue
+DESCRIPTION:In-person social event. No video link attached.
+STATUS:CONFIRMED
+END:VEVENT
+
+BEGIN:VEVENT
+UID:demo-allday-today@next-event
+SUMMARY:Company Hackathon & Innovation Day
+DTSTART;VALUE=DATE:20260828
+DTEND;VALUE=DATE:20260829
+DESCRIPTION:Annual company-wide hackathon day.
+STATUS:CONFIRMED
+END:VEVENT
+
+BEGIN:VEVENT
+UID:demo-webex-tmrw@next-event
+SUMMARY:Vendor Security Audit & Compliance
+DTSTART:20260829T080000Z
+DTEND:20260829T084500Z
+DESCRIPTION:Join room: https://acme.webex.com/meet/jane.doe
+STATUS:CONFIRMED
+END:VEVENT
+
+BEGIN:VEVENT
+UID:demo-goto-tmrw@next-event
+SUMMARY:Customer Success Onboarding
+DTSTART:20260829T120000Z
+DTEND:20260829T130000Z
+DESCRIPTION:Join via GoTo: https://app.goto.com/meeting/119227189
+STATUS:CONFIRMED
+END:VEVENT
+
+BEGIN:VEVENT
+UID:demo-allday-tmrw@next-event
+SUMMARY:Engineering Team Offsite & Planning
+DTSTART;VALUE=DATE:20260829
+DTEND;VALUE=DATE:20260830
+DESCRIPTION:Full-day planning workshop.
+STATUS:CONFIRMED
+END:VEVENT
+
+BEGIN:VEVENT
+UID:demo-longtitle-day3@next-event
+SUMMARY:Strategic Cross-Functional Architecture & Infrastructure Modernization Committee
+DTSTART:20260830T090000Z
+DTEND:20260830T103000Z
+DESCRIPTION:Deep dive modernization review.\nJoin: https://meet.google.com/klm-nopq-rst
+STATUS:CONFIRMED
+END:VEVENT
+
+BEGIN:VEVENT
+UID:demo-recurring-day4@next-event
+SUMMARY:Weekly Sprint Planning & Backlog Grooming
+DTSTART:20260831T073000Z
+DTEND:20260831T080000Z
+RRULE:FREQ=WEEKLY;BYDAY=MO
+DESCRIPTION:Weekly team sync.\nJoin: https://meet.google.com/uvw-xyza-bcd
+STATUS:CONFIRMED
+END:VEVENT
+
+END:VCALENDAR

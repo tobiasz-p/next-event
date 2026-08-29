@@ -77,6 +77,7 @@ BarWidget {
   property var failedFeeds: []
   property string currentFeedUrl: ""
   property string currentFeedLabel: ""
+  property string currentFeedColor: ""
   property string feedOutput: ""
 
   readonly property string label: Model.barLabel(root.configured, root.nextMeeting, root.now, root.maxTitleLength, root.use12Hour)
@@ -141,6 +142,7 @@ BarWidget {
     var feed = root.pendingFeeds[0]
     root.currentFeedUrl = String(feed.url || "").trim()
     root.currentFeedLabel = feed.label ? String(feed.label).trim() : ""
+    root.currentFeedColor = feed.color ? String(feed.color).trim() : ""
     root.feedOutput = ""
     if (!root.currentFeedUrl) {
       root.pendingFeeds.shift()
@@ -163,10 +165,13 @@ BarWidget {
       var events = Model.parseIcs(raw, {
         lookaheadDays: root.showDaysAhead + 1,
         maxEvents: 80,
-        now: root.now
+        now: root.now,
+        calendarColor: root.currentFeedColor,
+        feedLabel: root.currentFeedLabel
       })
-      if (root.currentFeedLabel) {
-        for (var i = 0; i < events.length; i++) events[i].feedLabel = root.currentFeedLabel
+      for (var i = 0; i < events.length; i++) {
+        if (root.currentFeedLabel) events[i].feedLabel = root.currentFeedLabel
+        if (root.currentFeedColor) events[i].calendarColor = root.currentFeedColor
       }
       root.feedChunks.push(events)
     } else {

@@ -139,6 +139,19 @@ var VIDEO_PROVIDERS = [
   }
 ]
 
+var CALENDAR_COLOR_PALETTE = [
+  "#4285f4",
+  "#34a853",
+  "#fbbc04",
+  "#ea4335",
+  "#a142f4",
+  "#24c1e0",
+  "#fa7b17",
+  "#f439a0",
+  "#5c6bc0",
+  "#00897b"
+]
+
 var Constants = {
   MS_PER_SECOND: MS_PER_SECOND,
   MS_PER_MINUTE: MS_PER_MINUTE,
@@ -221,7 +234,8 @@ var Constants = {
   WEEKDAY: WEEKDAY,
   WEEKDAY_NAMES: WEEKDAY_NAMES,
   MONTH_NAMES_SHORT: MONTH_NAMES_SHORT,
-  VIDEO_PROVIDERS: VIDEO_PROVIDERS
+  VIDEO_PROVIDERS: VIDEO_PROVIDERS,
+  CALENDAR_COLOR_PALETTE: CALENDAR_COLOR_PALETTE
 }
 
 // ---------------------------------------------------------------------------
@@ -1168,6 +1182,8 @@ class IcsParser {
       } else if (propName === "RRULE") event.rrule = RecurrenceRule.parse(propValue)
       else if (propName === "LOCATION") event.location = IcsParser.unescapeIcs(propValue)
       else if (propName === "DESCRIPTION") event.description = IcsParser.unescapeIcs(propValue)
+      else if (propName === "COLOR" || propName === "X-APPLE-CALENDAR-COLOR")
+        event.calendarColor = propValue.trim()
       else if (
         propName === "X-GOOGLE-CONFERENCE" ||
         propName === "X-MICROSOFT-SKYPETEAMSMEETINGURL"
@@ -1323,7 +1339,9 @@ class IcsParser {
           allDay: source.allDay === true,
           meetUrl: source.meetUrl || null,
           location: source.location || "",
-          description: source.description || ""
+          description: source.description || "",
+          calendarColor: source.calendarColor || (options && options.calendarColor) || null,
+          feedLabel: (options && options.feedLabel) || null
         })
       }
     }
@@ -1444,6 +1462,128 @@ class FeedConfigParser {
     return value === "12" || value === 12
   }
 
+  static isValidHexColor(color) {
+    if (typeof color !== "string") return false
+    return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color.trim())
+  }
+
+  static pickCalendarColor(seed, index) {
+    if (index !== undefined && index !== null && typeof index === "number" && index >= 0) {
+      return CALENDAR_COLOR_PALETTE[index % CALENDAR_COLOR_PALETTE.length]
+    }
+    var str = String(seed == null ? "" : seed).trim()
+    if (str) {
+      var hash = 0
+      for (var i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i)
+        hash |= 0
+      }
+      return CALENDAR_COLOR_PALETTE[Math.abs(hash) % CALENDAR_COLOR_PALETTE.length]
+    }
+    return CALENDAR_COLOR_PALETTE[Math.floor(Math.random() * CALENDAR_COLOR_PALETTE.length)]
+  }
+
+  static normalizeFeedColor(color, seed, index) {
+    if (color && FeedConfigParser.isValidHexColor(color)) {
+      return String(color).trim()
+    }
+    return FeedConfigParser.pickCalendarColor(seed, index)
+  }
+
+  static hsvToHex(h, s, v) {
+    h = Math.max(0, Math.min(1, typeof h === "number" ? h : 0))
+    s = Math.max(0, Math.min(1, typeof s === "number" ? s : 1))
+    v = Math.max(0, Math.min(1, typeof v === "number" ? v : 1))
+
+    var r = 0
+    var g = 0
+    var b = 0
+    var i = Math.floor(h * 6)
+    var f = h * 6 - i
+    var p = v * (1 - s)
+    var q = v * (1 - f * s)
+    var t = v * (1 - (1 - f) * s)
+
+    switch (i % 6) {
+      case 0:
+        r = v
+        g = t
+        b = p
+        break
+      case 1:
+        r = q
+        g = v
+        b = p
+        break
+      case 2:
+        r = p
+        g = v
+        b = t
+        break
+      case 3:
+        r = p
+        g = q
+        b = v
+        break
+      case 4:
+        r = t
+        g = p
+        b = v
+        break
+      case 5:
+        r = v
+        g = p
+        b = q
+        break
+    }
+
+    var r255 = Math.round(r * 255)
+    var g255 = Math.round(g * 255)
+    var b255 = Math.round(b * 255)
+    var rHex = (r255 < 16 ? "0" : "") + r255.toString(16)
+    var gHex = (g255 < 16 ? "0" : "") + g255.toString(16)
+    var bHex = (b255 < 16 ? "0" : "") + b255.toString(16)
+    return "#" + rHex + gHex + bHex
+  }
+
+  static hexToHsv(hex) {
+    if (!FeedConfigParser.isValidHexColor(hex)) return { h: 0, s: 1, v: 1 }
+    var clean = String(hex).replace("#", "").trim()
+    if (clean.length === 3) {
+      clean =
+        clean.charAt(0) +
+        clean.charAt(0) +
+        clean.charAt(1) +
+        clean.charAt(1) +
+        clean.charAt(2) +
+        clean.charAt(2)
+    } else if (clean.length === 8) {
+      clean = clean.slice(0, 6)
+    }
+    var r = parseInt(clean.slice(0, 2), 16) / 255
+    var g = parseInt(clean.slice(2, 4), 16) / 255
+    var b = parseInt(clean.slice(4, 6), 16) / 255
+
+    var max = Math.max(r, g, b)
+    var min = Math.min(r, g, b)
+    var delta = max - min
+    var h = 0
+    var s = max === 0 ? 0 : delta / max
+    var v = max
+
+    if (delta !== 0) {
+      if (max === r) {
+        h = ((g - b) / delta + (g < b ? 6 : 0)) / 6
+      } else if (max === g) {
+        h = ((b - r) / delta + 2) / 6
+      } else {
+        h = ((r - g) / delta + 4) / 6
+      }
+    }
+
+    return { h: h, s: s, v: v }
+  }
+
   static feedsFromArray(arr) {
     var feeds = []
     for (var i = 0; i < arr.length; i++) {
@@ -1452,18 +1592,49 @@ class FeedConfigParser {
       if (typeof item === "string") {
         var rawFeed = item.trim()
         if (!rawFeed) continue
-        var bar = rawFeed.indexOf("|")
-        if (bar >= 0)
-          feeds.push({
-            url: rawFeed.slice(bar + 1).trim(),
-            label: rawFeed.slice(0, bar).trim() || undefined
-          })
-        else feeds.push({ url: rawFeed, label: undefined })
-      } else {
-        var url = String(item.url == null ? "" : item.url).trim()
+        var pipeParts = rawFeed.split("|")
+        var label = undefined
+        var color = undefined
+        var url = ""
+        if (pipeParts.length === 1) {
+          url = pipeParts[0].trim()
+        } else if (pipeParts.length === 2) {
+          var p0 = pipeParts[0].trim()
+          var p1 = pipeParts[1].trim()
+          if (FeedConfigParser.isValidHexColor(p0)) {
+            color = p0
+          } else {
+            label = p0 || undefined
+          }
+          url = p1
+        } else {
+          var last = pipeParts[pipeParts.length - 1].trim()
+          var first = pipeParts[0].trim()
+          var mid = pipeParts
+            .slice(1, pipeParts.length - 1)
+            .join("|")
+            .trim()
+          if (FeedConfigParser.isValidHexColor(mid)) {
+            label = first || undefined
+            color = mid
+          } else if (FeedConfigParser.isValidHexColor(first)) {
+            color = first
+            label = mid || undefined
+          } else {
+            label = first + "|" + mid || undefined
+          }
+          url = last
+        }
         if (!url) continue
-        var label = item.label == null ? undefined : String(item.label).trim() || undefined
-        feeds.push({ url: url, label: label })
+        color = FeedConfigParser.normalizeFeedColor(color, label || url, feeds.length)
+        feeds.push({ url: url, label: label, color: color })
+      } else {
+        var urlObj = String(item.url == null ? "" : item.url).trim()
+        if (!urlObj) continue
+        var labelObj = item.label == null ? undefined : String(item.label).trim() || undefined
+        var colorObj = item.color == null ? undefined : String(item.color).trim() || undefined
+        colorObj = FeedConfigParser.normalizeFeedColor(colorObj, labelObj || urlObj, feeds.length)
+        feeds.push({ url: urlObj, label: labelObj, color: colorObj })
       }
     }
     return feeds
@@ -1485,21 +1656,7 @@ class FeedConfigParser {
     }
 
     var parts = text.split(",")
-    var feeds = []
-    for (var i = 0; i < parts.length; i++) {
-      var part = parts[i].trim()
-      if (!part) continue
-      var barIndex = part.indexOf("|")
-      if (barIndex >= 0) {
-        feeds.push({
-          url: part.slice(barIndex + 1).trim(),
-          label: part.slice(0, barIndex).trim() || undefined
-        })
-      } else {
-        feeds.push({ url: part, label: undefined })
-      }
-    }
-    return feeds
+    return FeedConfigParser.feedsFromArray(parts)
   }
 
   static dedupeEvents(events) {
@@ -1677,7 +1834,7 @@ class ScheduleAggregator {
         var feedLabel = feed && feed.label ? String(feed.label).trim() : ""
         if (!feedLabel || seen[feedLabel]) continue
         seen[feedLabel] = true
-        legend.push({ name: feedLabel, color: null })
+        legend.push({ name: feedLabel, color: feed.color || null })
       }
     }
     return legend
@@ -2175,6 +2332,18 @@ function parseTimeFormat(value) {
 function is12Hour(value) {
   return FeedConfigParser.is12Hour(value)
 }
+function pickCalendarColor(seed, index) {
+  return FeedConfigParser.pickCalendarColor(seed, index)
+}
+function isValidHexColor(color) {
+  return FeedConfigParser.isValidHexColor(color)
+}
+function hsvToHex(h, s, v) {
+  return FeedConfigParser.hsvToHex(h, s, v)
+}
+function hexToHsv(hex) {
+  return FeedConfigParser.hexToHsv(hex)
+}
 
 // --- Module Exports Guard for Node.js --------------------------------------
 
@@ -2205,6 +2374,10 @@ if (typeof module !== "undefined" && module.exports) {
     toBoolean: toBoolean,
     parseTimeFormat: parseTimeFormat,
     is12Hour: is12Hour,
+    pickCalendarColor: pickCalendarColor,
+    isValidHexColor: isValidHexColor,
+    hsvToHex: hsvToHex,
+    hexToHsv: hexToHsv,
     buildUpcoming: buildUpcoming,
     upcomingToday: upcomingToday,
     buildScheduleGroups: buildScheduleGroups,

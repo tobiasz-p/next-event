@@ -38,7 +38,7 @@ Tests cover domain JS only; the QML layer has no automated coverage.
 
 ## Workflow conventions
 
-- Contributions follow Conventional Commits (`feat:`, `fix:`, `docs:`, ...) and a strictly linear history (rebase, no merge commits). See README's Contributing section.
+- Contributions follow Conventional Commits (`feat:`, `fix:`, `docs:`, ...) with a mandatory body explaining *why* (the problem being solved, rationale, and design decisions), and a strictly linear history (rebase, no merge commits). See README's Contributing section.
 - Widget settings are configured via `omarchy bar set tobiasz-p.next-event <key> <value>`; defaults live in the README table (e.g. `icsUrl`, `refreshMinutes`, `showDaysAhead`).
 
 ## Releasing

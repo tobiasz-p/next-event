@@ -1,5 +1,6 @@
 singleton Tokens 1.0 Tokens.qml
 CalendarLegend 1.0 CalendarLegend.qml
+ColorSpectrumPicker 1.0 ColorSpectrumPicker.qml
 EmptySchedule 1.0 EmptySchedule.qml
 FeedCard 1.0 FeedCard.qml
 HeaderBar 1.0 HeaderBar.qml

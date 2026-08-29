@@ -92,17 +92,16 @@ For personal accounts (Google Calendar, Outlook, iCloud, Nextcloud, Fastmail):
 omarchy bar set tobiasz-p.next-event icsUrl '<your-private-ics-url>'
 ```
 
-#### Multiple calendars
+#### Multiple calendars & Custom Colors
 
 `icsUrl` accepts more than one feed. Combine feeds with a comma, and optionally
-prefix each with a `label|` (pipe) so work/personal calendars are easy to tell
-apart — the label is shown as a small tag next to events:
+specify a label and color (e.g. `Label|#HEX|url` or `Label|url` or `#HEX|url`). If no color is specified, NextEvent automatically assigns a distinct, attractive palette color:
 
 ```sh
-omarchy bar set tobiasz-p.next-event icsUrl 'Work|https://…/work.ics,Personal|https://…/personal.ics'
+omarchy bar set tobiasz-p.next-event icsUrl 'Work|#4285f4|https://…/work.ics,Personal|#34a853|https://…/personal.ics'
 ```
 
-A single unlabeled feed still works exactly as before:
+A single unlabeled feed still works seamlessly:
 
 ```sh
 omarchy bar set tobiasz-p.next-event icsUrl 'https://…/single.ics'
@@ -112,7 +111,7 @@ For URLs that themselves contain a comma or `|`, use a JSON array of objects
 instead (useful when editing `shell.json` directly):
 
 ```json
-[{"url":"https://…/work.ics","label":"Work"},{"url":"https://…/personal.ics","label":"Personal"}]
+[{"url":"https://…/work.ics","label":"Work","color":"#4285f4"},{"url":"https://…/personal.ics","label":"Personal","color":"#34a853"}]
 ```
 
 The same event shared across feeds (same `UID`) is deduplicated. Feeds are
@@ -136,7 +135,7 @@ Configure settings with `omarchy bar set tobiasz-p.next-event <key> <value>`:
 
 | Key                   | Default | Description                                         |
 | --------------------- | ------- | --------------------------------------------------- |
-| `icsUrl`              | `""`    | Calendar iCal feed(s). One URL, or a comma-separated list of `label\|url` feeds, or a JSON array of `{ url, label }` objects. If left empty, NextEvent reads from the JSON state file |
+| `icsUrl`              | `""`    | Calendar iCal feed(s). One URL, or comma-separated `label\|url`, `label\|#color\|url` feeds, or a JSON array of `{ url, label, color }` objects. If left empty, NextEvent reads from the JSON state file |
 | `eventsJsonPath`      | `~/.local/state/omarchy/calendar-events.json` | Path to the JSON events state file (written by `sync/setup`, `omarchy-calendar`, or custom script) |
 | `refreshMinutes`      | `5`     | How often to refetch feeds in ICS mode              |
 | `showDaysAhead`       | `3`     | How many days ahead to list meetings                |
@@ -240,10 +239,12 @@ guard is what keeps both working.
 
 ### Commit Guidelines
 
-We follow [Conventional Commits](https://www.conventionalcommits.org/). Write concise, descriptive commit messages in the imperative mood:
+We follow [Conventional Commits](https://www.conventionalcommits.org/). Write concise, descriptive commit messages in the imperative mood, followed by a body explaining the *why* (context, rationale, and design decisions):
 
 ```
 <type>(<optional scope>): <description>
+
+<body explaining the problem, context, and why the change was made>
 ```
 
 **Common Types:**

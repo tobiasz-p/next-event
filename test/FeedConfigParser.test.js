@@ -69,4 +69,29 @@ describe("FeedConfigParser", () => {
       assert.strictEqual(FeedConfigParser.normalizeKey("", "r"), "r")
     })
   })
+
+  describe("parseTimeFormat() and is12Hour()", () => {
+    it("parses valid 12-hour values and flags 12-hour mode", () => {
+      assert.strictEqual(FeedConfigParser.parseTimeFormat("12"), "12")
+      assert.strictEqual(FeedConfigParser.parseTimeFormat(12), "12")
+
+      assert.strictEqual(FeedConfigParser.is12Hour("12"), true)
+      assert.strictEqual(FeedConfigParser.is12Hour(12), true)
+    })
+
+    it("falls back to 24-hour mode for all other values", () => {
+      assert.strictEqual(FeedConfigParser.parseTimeFormat("24"), "24")
+      assert.strictEqual(FeedConfigParser.parseTimeFormat(24), "24")
+      assert.strictEqual(FeedConfigParser.parseTimeFormat("auto"), "24")
+      assert.strictEqual(FeedConfigParser.parseTimeFormat(false), "24")
+      assert.strictEqual(FeedConfigParser.parseTimeFormat(null), "24")
+      assert.strictEqual(FeedConfigParser.parseTimeFormat(undefined), "24")
+
+      assert.strictEqual(FeedConfigParser.is12Hour("24"), false)
+      assert.strictEqual(FeedConfigParser.is12Hour(24), false)
+      assert.strictEqual(FeedConfigParser.is12Hour(false), false)
+      assert.strictEqual(FeedConfigParser.is12Hour(null), false)
+      assert.strictEqual(FeedConfigParser.is12Hour(undefined), false)
+    })
+  })
 })

@@ -34,21 +34,102 @@ describe("DisplayFormatter", () => {
   })
 
   describe("hm()", () => {
-    it("formats hours and minutes with leading zero", () => {
+    it("formats hours and minutes with leading zero in 24-hour mode by default", () => {
       assert.strictEqual(DisplayFormatter.hm(new Date(2026, 7, 28, 9, 5, 0)), "09:05")
+      assert.strictEqual(DisplayFormatter.hm(new Date(2026, 7, 28, 0, 5, 0)), "00:05")
+      assert.strictEqual(DisplayFormatter.hm(new Date(2026, 7, 28, 13, 5, 0)), "13:05")
+    })
+
+    it("formats midnight, noon, and afternoon correctly in 12-hour mode", () => {
+      assert.strictEqual(DisplayFormatter.hm(new Date(2026, 7, 28, 0, 0, 0), true), "12:00 AM")
+      assert.strictEqual(DisplayFormatter.hm(new Date(2026, 7, 28, 0, 5, 0), true), "12:05 AM")
+      assert.strictEqual(DisplayFormatter.hm(new Date(2026, 7, 28, 9, 5, 0), true), "9:05 AM")
+      assert.strictEqual(DisplayFormatter.hm(new Date(2026, 7, 28, 12, 0, 0), true), "12:00 PM")
+      assert.strictEqual(DisplayFormatter.hm(new Date(2026, 7, 28, 12, 5, 0), true), "12:05 PM")
+      assert.strictEqual(DisplayFormatter.hm(new Date(2026, 7, 28, 13, 5, 0), true), "1:05 PM")
+      assert.strictEqual(DisplayFormatter.hm(new Date(2026, 7, 28, 23, 59, 0), true), "11:59 PM")
+    })
+
+    it("returns empty string for null or invalid dates", () => {
+      assert.strictEqual(DisplayFormatter.hm(null), "")
+      assert.strictEqual(DisplayFormatter.hm(new Date(NaN), true), "")
     })
   })
 
   describe("timeRange()", () => {
-    it("formats timed range and all-day label", () => {
+    it("formats timed range and all-day label in 24-hour and 12-hour modes", () => {
       assert.strictEqual(
         DisplayFormatter.timeRange(timedEvent.start, timedEvent.end, false),
         "10:00–11:00"
       )
       assert.strictEqual(
+        DisplayFormatter.timeRange(timedEvent.start, timedEvent.end, false, true),
+        "10:00 AM–11:00 AM"
+      )
+      assert.strictEqual(
+        DisplayFormatter.timeRange(
+          new Date(2026, 7, 28, 13, 0, 0),
+          new Date(2026, 7, 28, 14, 30, 0),
+          false,
+          true
+        ),
+        "1:00 PM–2:30 PM"
+      )
+      assert.strictEqual(
         DisplayFormatter.timeRange(allDayToday.start, allDayToday.end, true),
         "All day"
       )
+      assert.strictEqual(
+        DisplayFormatter.timeRange(allDayToday.start, allDayToday.end, true, true),
+        "All day"
+      )
+      assert.strictEqual(DisplayFormatter.timeRange(null, null, false), "")
+    })
+  })
+
+  describe("meetingTimeLabel()", () => {
+    it("formats meeting time label in 24-hour and 12-hour modes", () => {
+      assert.strictEqual(
+        DisplayFormatter.meetingTimeLabel(timedEvent.start, timedEvent.end, now, false, false),
+        "Today · 10:00–11:00"
+      )
+      assert.strictEqual(
+        DisplayFormatter.meetingTimeLabel(timedEvent.start, timedEvent.end, now, false, true),
+        "Today · 10:00 AM–11:00 AM"
+      )
+      assert.strictEqual(
+        DisplayFormatter.meetingTimeLabel(allDayToday.start, allDayToday.end, now, true, true),
+        "Today · All day"
+      )
+    })
+  })
+
+  describe("relativeStatus()", () => {
+    it("formats relative countdown with start time in 24-hour and 12-hour modes", () => {
+      assert.strictEqual(DisplayFormatter.relativeStatus(timedEvent, now, false), "starts at 10:00")
+      assert.strictEqual(
+        DisplayFormatter.relativeStatus(timedEvent, now, true),
+        "starts at 10:00 AM"
+      )
+
+      const afternoonEvent = new CalendarEvent({
+        start: new Date(2026, 7, 28, 14, 0, 0),
+        end: new Date(2026, 7, 28, 15, 0, 0)
+      })
+      assert.strictEqual(
+        DisplayFormatter.relativeStatus(afternoonEvent, now, false),
+        "starts at 14:00"
+      )
+      assert.strictEqual(
+        DisplayFormatter.relativeStatus(afternoonEvent, now, true),
+        "starts at 2:00 PM"
+      )
+
+      const in5MinEvent = new CalendarEvent({
+        start: new Date(2026, 7, 28, 9, 5, 0),
+        end: new Date(2026, 7, 28, 10, 0, 0)
+      })
+      assert.strictEqual(DisplayFormatter.relativeStatus(in5MinEvent, now, true), "starts in 5 min")
     })
   })
 
@@ -57,6 +138,36 @@ describe("DisplayFormatter", () => {
       assert.strictEqual(
         DisplayFormatter.formatLabel(timedEvent, now, 30),
         "Sprint Review · in 60 min"
+      )
+    })
+
+    it("formats future timed event with 24-hour and 12-hour formats", () => {
+      const laterToday = new CalendarEvent({
+        title: "Architecture Sync",
+        start: new Date(2026, 7, 28, 14, 30, 0),
+        end: new Date(2026, 7, 28, 15, 30, 0)
+      })
+      assert.strictEqual(
+        DisplayFormatter.formatLabel(laterToday, now, 40, false),
+        "Architecture Sync · 14:30"
+      )
+      assert.strictEqual(
+        DisplayFormatter.formatLabel(laterToday, now, 40, true),
+        "Architecture Sync · 2:30 PM"
+      )
+
+      const tomorrowMeeting = new CalendarEvent({
+        title: "Design Review",
+        start: new Date(2026, 7, 29, 13, 0, 0),
+        end: new Date(2026, 7, 29, 14, 0, 0)
+      })
+      assert.strictEqual(
+        DisplayFormatter.formatLabel(tomorrowMeeting, now, 40, false),
+        "Design Review · Tmrw 13:00"
+      )
+      assert.strictEqual(
+        DisplayFormatter.formatLabel(tomorrowMeeting, now, 40, true),
+        "Design Review · Tmrw 1:00 PM"
       )
     })
 
@@ -84,10 +195,20 @@ describe("DisplayFormatter", () => {
   })
 
   describe("barLabel()", () => {
-    it("returns formatted icon and title when configured", () => {
+    it("returns formatted icon and title when configured in 24h and 12h", () => {
       assert.strictEqual(
-        DisplayFormatter.barLabel(true, timedEvent, now, 30),
+        DisplayFormatter.barLabel(true, timedEvent, now, 30, false),
         "  Sprint Review · in 60 min"
+      )
+      const laterEvent = new CalendarEvent({
+        title: "Sprint Review",
+        start: new Date(2026, 7, 28, 14, 0, 0),
+        end: new Date(2026, 7, 28, 15, 0, 0),
+        meetUrl: "https://meet.google.com/abc"
+      })
+      assert.strictEqual(
+        DisplayFormatter.barLabel(true, laterEvent, now, 30, true),
+        "  Sprint Review · 2:00 PM"
       )
     })
 
@@ -120,14 +241,43 @@ describe("DisplayFormatter", () => {
     })
   })
 
+  describe("formatUpdated()", () => {
+    it("formats recent updates in relative minutes or hours", () => {
+      assert.strictEqual(DisplayFormatter.formatUpdated(now, now), "just now")
+      assert.strictEqual(
+        DisplayFormatter.formatUpdated(new Date(now.getTime() - 10 * 60000), now),
+        "10m ago"
+      )
+      assert.strictEqual(
+        DisplayFormatter.formatUpdated(new Date(now.getTime() - 3 * 3600000), now),
+        "3h ago"
+      )
+    })
+
+    it("formats updates older than 24 hours in 24h and 12h time format", () => {
+      const oldDate = new Date(2026, 7, 25, 14, 30, 0)
+      assert.strictEqual(DisplayFormatter.formatUpdated(oldDate, now, false), "14:30")
+      assert.strictEqual(DisplayFormatter.formatUpdated(oldDate, now, true), "2:30 PM")
+    })
+  })
+
   describe("tooltipLine()", () => {
-    it("formats tooltip for upcoming event with feed label", () => {
-      const tooltip = DisplayFormatter.tooltipLine(true, timedEvent, now, {
+    it("formats tooltip for upcoming event with feed label in 24h and 12h", () => {
+      const tooltip24 = DisplayFormatter.tooltipLine(true, timedEvent, now, {
         lastFetchFailed: false,
         offlineFeedCount: 0,
-        showCalendarLabel: true
+        showCalendarLabel: true,
+        use12Hour: false
       })
-      assert.strictEqual(tooltip, "Work · Sprint Review · 10:00–11:00 (starts at 10:00)")
+      assert.strictEqual(tooltip24, "Work · Sprint Review · 10:00–11:00 (starts at 10:00)")
+
+      const tooltip12 = DisplayFormatter.tooltipLine(true, timedEvent, now, {
+        lastFetchFailed: false,
+        offlineFeedCount: 0,
+        showCalendarLabel: true,
+        use12Hour: true
+      })
+      assert.strictEqual(tooltip12, "Work · Sprint Review · 10:00 AM–11:00 AM (starts at 10:00 AM)")
     })
 
     it("returns setup message when unconfigured", () => {
@@ -176,10 +326,14 @@ describe("DisplayFormatter", () => {
   })
 
   describe("heroTimeStatus()", () => {
-    it("formats meeting time and relative countdown status", () => {
+    it("formats meeting time and relative countdown status in 24h and 12h", () => {
       assert.strictEqual(
-        DisplayFormatter.heroTimeStatus(timedEvent, now),
+        DisplayFormatter.heroTimeStatus(timedEvent, now, false),
         "Today · 10:00–11:00 · starts at 10:00"
+      )
+      assert.strictEqual(
+        DisplayFormatter.heroTimeStatus(timedEvent, now, true),
+        "Today · 10:00 AM–11:00 AM · starts at 10:00 AM"
       )
     })
   })

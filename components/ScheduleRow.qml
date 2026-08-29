@@ -11,6 +11,7 @@ CursorSurface {
   property color contentForeground: Color.foreground
   property string contentFontFamily: Style.font.family
   property bool useCalendarColors: true
+  property bool use12Hour: false
 
   signal clicked()
   signal hovered()
@@ -58,8 +59,8 @@ CursorSurface {
     Text {
       id: timeLabel
       Layout.alignment: Qt.AlignVCenter
-      Layout.preferredWidth: Style.space(Tokens.colTime)
-      text: root.meeting ? (root.meeting.allDay ? Model.LABEL_ALL_DAY.toUpperCase() : Model.hm(root.meeting.start)) : ""
+      Layout.preferredWidth: Style.space(root.use12Hour ? Tokens.colTime12Hour : Tokens.colTime)
+      text: root.meeting ? (root.meeting.allDay ? Model.LABEL_ALL_DAY.toUpperCase() : Model.hm(root.meeting.start, root.use12Hour)) : ""
       color: Qt.darker(root.contentForeground, Tokens.dimLabel)
       font.family: root.contentFontFamily
       font.pixelSize: Style.font.bodySmall

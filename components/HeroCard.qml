@@ -11,6 +11,7 @@ Item {
   property date now: new Date()
   property bool inMeeting: false
   property bool useCalendarColors: true
+  property bool use12Hour: false
   property color contentForeground: Color.foreground
   property string contentFontFamily: Style.font.family
   property bool cursorOnJoin: false
@@ -99,7 +100,7 @@ Item {
 
       Text {
         width: parent.width
-        text: Model.heroTimeStatus(root.next, root.now)
+        text: Model.heroTimeStatus(root.next, root.now, root.use12Hour)
         color: Qt.darker(root.contentForeground, Tokens.dimMeta)
         font.family: root.contentFontFamily
         font.pixelSize: Style.font.bodySmall

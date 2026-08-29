@@ -31,20 +31,20 @@ Item {
         spacing: Style.space(5)
 
         Rectangle {
-          implicitWidth: Style.space(6)
-          implicitHeight: Style.space(6)
+          implicitWidth: Style.space(Tokens.dotSize)
+          implicitHeight: Style.space(Tokens.dotSize)
           radius: width * 0.5
           color: (root.useCalendarColors && modelData.color) ? modelData.color : Qt.rgba(
             root.contentForeground.r,
             root.contentForeground.g,
             root.contentForeground.b,
-            0.22
+            Tokens.badgeColorAlpha
           )
         }
 
         Text {
           text: modelData.name || ""
-          color: Qt.darker(root.contentForeground, 1.5)
+          color: Qt.darker(root.contentForeground, Tokens.dimMuted)
           font.family: root.contentFontFamily
           font.pixelSize: Style.font.caption
           elide: Text.ElideRight

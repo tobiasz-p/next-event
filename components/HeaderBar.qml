@@ -27,10 +27,10 @@ Item {
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
     text: Model.SECTION_EVENTS
-    color: Qt.darker(root.contentForeground, 1.5)
+    color: Qt.darker(root.contentForeground, Tokens.dimMuted)
     font.family: root.contentFontFamily
     font.pixelSize: Style.font.caption
-    font.letterSpacing: 1.2
+    font.letterSpacing: Tokens.sectionLetterSpacing
     font.bold: true
   }
 
@@ -40,7 +40,7 @@ Item {
     anchors.rightMargin: Style.space(8)
     anchors.verticalCenter: parent.verticalCenter
     text: root.statusText
-    color: root.isError ? Color.urgent : Qt.darker(root.contentForeground, 1.5)
+    color: root.isError ? Color.urgent : Qt.darker(root.contentForeground, Tokens.dimMuted)
     font.family: root.contentFontFamily
     font.pixelSize: Style.font.caption
   }
@@ -54,7 +54,7 @@ Item {
     foreground: root.contentForeground
     fontFamily: root.contentFontFamily
     enabled: !root.fetching
-    opacity: root.fetching ? 0.6 : 1.0
+    opacity: root.fetching ? Tokens.fetchingOpacity : 1.0
     hasCursor: root.cursorOnRefresh
     onHovered: function(isHovered) { root.refreshHovered(isHovered) }
     onClicked: root.refreshRequested()

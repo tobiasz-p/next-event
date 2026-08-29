@@ -35,7 +35,7 @@ Item {
       Text {
         width: parent.width
         text: Model.LABEL_SETUP_CONNECT_SUBTITLE
-        color: Qt.darker(root.contentForeground, 1.35)
+        color: Qt.darker(root.contentForeground, Tokens.dimMeta)
         font.family: root.contentFontFamily
         font.pixelSize: Style.font.bodySmall
         wrapMode: Text.WordWrap

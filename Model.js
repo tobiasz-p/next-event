@@ -1630,6 +1630,32 @@ class ScheduleAggregator {
     return groups
   }
 
+  static buildCalendarLegend(events, feeds) {
+    var seen = {}
+    var legend = []
+    if (Array.isArray(events)) {
+      for (var i = 0; i < events.length; i++) {
+        var event = events[i]
+        var name = event.feedLabel || event.calendarName || ""
+        if (!name) continue
+        var color = event.calendarColor || null
+        if (seen[name]) continue
+        seen[name] = true
+        legend.push({ name: name, color: color })
+      }
+    }
+    if (Array.isArray(feeds)) {
+      for (var j = 0; j < feeds.length; j++) {
+        var feed = feeds[j]
+        var feedLabel = feed && feed.label ? String(feed.label).trim() : ""
+        if (!feedLabel || seen[feedLabel]) continue
+        seen[feedLabel] = true
+        legend.push({ name: feedLabel, color: null })
+      }
+    }
+    return legend
+  }
+
   static computeScheduleState(events, now, options) {
     events = events || []
     now = now || new Date()
@@ -1652,11 +1678,14 @@ class ScheduleAggregator {
       maxRows: maxScheduleRows
     })
 
+    var calendarLegend = ScheduleAggregator.buildCalendarLegend(events, options.feeds)
+
     return {
       meetings: meetings,
       upcomingToday: upcomingTodayList,
       scheduleGroups: scheduleGroups,
-      nextMeeting: meetings.length > 0 ? meetings[0] : null
+      nextMeeting: meetings.length > 0 ? meetings[0] : null,
+      calendarLegend: calendarLegend
     }
   }
 }
@@ -1698,11 +1727,12 @@ class DisplayFormatter {
     var diff = Math.round(
       (DateTimeUtils.startOfDay(date) - DateTimeUtils.startOfDay(now)) / MS_PER_DAY
     )
-    if (diff === 0) return SECTION_TODAY
-    if (diff === 1) return SECTION_TOMORROW
     var dayOfWeek = WEEKDAY_NAMES[date.getDay()].toUpperCase()
     var monthName = MONTH_NAMES_SHORT[date.getMonth()].toUpperCase()
-    return dayOfWeek + " " + date.getDate() + " " + monthName
+    var formattedDate = dayOfWeek + " " + date.getDate() + " " + monthName
+    if (diff === 0) return SECTION_TODAY + " · " + formattedDate
+    if (diff === 1) return SECTION_TOMORROW + " · " + formattedDate
+    return formattedDate
   }
 
   static meetingTimeLabel(start, end, now, allDay) {
@@ -2009,6 +2039,9 @@ function upcomingToday(events, now) {
 function buildScheduleGroups(events, now, options) {
   return ScheduleAggregator.buildScheduleGroups(events, now, options)
 }
+function buildCalendarLegend(events, feeds) {
+  return ScheduleAggregator.buildCalendarLegend(events, feeds)
+}
 function computeScheduleState(events, now, options) {
   return ScheduleAggregator.computeScheduleState(events, now, options)
 }
@@ -2106,6 +2139,7 @@ if (typeof module !== "undefined" && module.exports) {
     buildUpcoming: buildUpcoming,
     upcomingToday: upcomingToday,
     buildScheduleGroups: buildScheduleGroups,
+    buildCalendarLegend: buildCalendarLegend,
     computeScheduleState: computeScheduleState,
     findMeetUrl: findMeetUrl,
     meetLabel: meetLabel,

@@ -109,22 +109,57 @@ describe("ScheduleAggregator", () => {
       const events = [todayAllDay, todayTimed1, tmrwTimed]
       const groups = ScheduleAggregator.buildScheduleGroups(events, now, { lookaheadDays: 3 })
       assert.strictEqual(groups.length, 2)
-      assert.strictEqual(groups[0].title, "TODAY")
+      assert.strictEqual(groups[0].title, "TODAY · FRI 28 AUG")
       assert.strictEqual(groups[0].items[0].title, "Daily Standup")
       assert.strictEqual(groups[0].items[1].title, "Hackathon")
-      assert.strictEqual(groups[1].title, "TOMORROW")
+      assert.strictEqual(groups[1].title, "TOMORROW · SAT 29 AUG")
       assert.strictEqual(groups[1].items[0].title, "Saturday Sync")
     })
   })
 
+  describe("buildCalendarLegend()", () => {
+    it("deduplicates calendars from events and preserves their colors", () => {
+      const events = [
+        { feedLabel: "Work", calendarColor: "#4285f4" },
+        { feedLabel: "Work", calendarColor: "#4285f4" },
+        { calendarName: "Personal", calendarColor: "#34a853" }
+      ]
+      const legend = ScheduleAggregator.buildCalendarLegend(events, [])
+      assert.deepStrictEqual(legend, [
+        { name: "Work", color: "#4285f4" },
+        { name: "Personal", color: "#34a853" }
+      ])
+    })
+
+    it("appends feed config labels for feeds without events", () => {
+      const events = [{ feedLabel: "Work", calendarColor: "#4285f4" }]
+      const feeds = [{ label: "Work" }, { label: "Holidays" }]
+      const legend = ScheduleAggregator.buildCalendarLegend(events, feeds)
+      assert.deepStrictEqual(legend, [
+        { name: "Work", color: "#4285f4" },
+        { name: "Holidays", color: null }
+      ])
+    })
+
+    it("handles empty or non-array inputs gracefully", () => {
+      assert.deepStrictEqual(ScheduleAggregator.buildCalendarLegend(null, null), [])
+      assert.deepStrictEqual(ScheduleAggregator.buildCalendarLegend([], []), [])
+    })
+  })
+
   describe("computeScheduleState()", () => {
-    it("computes schedule bundle with next meeting, upcoming today, and day groups", () => {
+    it("computes schedule bundle with next meeting, upcoming today, day groups, and calendar legend", () => {
       const events = [todayTimed1, tmrwTimed]
-      const state = ScheduleAggregator.computeScheduleState(events, now, { lookaheadDays: 3 })
+      const state = ScheduleAggregator.computeScheduleState(events, now, {
+        lookaheadDays: 3,
+        feeds: [{ label: "Work" }]
+      })
       assert.strictEqual(state.nextMeeting.title, "Daily Standup")
       assert.strictEqual(state.meetings.length, 2)
       assert.strictEqual(state.upcomingToday.length, 1)
       assert.strictEqual(state.scheduleGroups.length, 2)
+      assert.strictEqual(state.calendarLegend.length, 1)
+      assert.strictEqual(state.calendarLegend[0].name, "Work")
     })
   })
 })

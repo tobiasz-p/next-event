@@ -40,6 +40,7 @@ describe("Model (Facade)", () => {
       assert.strictEqual(state.nextMeeting.title, "Team Standup")
       assert.strictEqual(Model.heroHeaderMeta(ev), "30m  ·    Meet")
       assert.strictEqual(Model.barLabel(true, ev, now, 30), "  Team Standup · in 60 min")
+      assert.deepStrictEqual(Model.buildCalendarLegend([ev], []), [])
     })
   })
 })

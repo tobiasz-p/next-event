@@ -20,10 +20,10 @@ Panel {
   readonly property bool fetching: hostWidget ? hostWidget.fetching : false
   readonly property bool lastFetchFailed: hostWidget ? hostWidget.lastFetchFailed : false
   readonly property int offlineFeedCount: hostWidget ? hostWidget.offlineFeedCount : 0
-  readonly property bool showCalendarLabel: hostWidget ? hostWidget.showCalendarLabel : true
   readonly property bool useCalendarColors: hostWidget ? hostWidget.useCalendarColors : true
 
   property var scheduleGroups: []
+  property var calendarLegend: []
   property var next: null
   property date now: hostWidget ? hostWidget.now : new Date()
 
@@ -53,6 +53,7 @@ Panel {
   function reload() {
     if (!root.hostWidget) return
     root.scheduleGroups = root.hostWidget.scheduleGroups || []
+    root.calendarLegend = root.hostWidget.calendarLegend || []
     root.next = root.hostWidget.nextMeeting || null
 
     var configured = !!root.hostWidget.configured
@@ -227,7 +228,6 @@ Panel {
             next: root.next
             now: root.now
             inMeeting: root.inMeeting
-            showCalendarLabel: root.showCalendarLabel
             useCalendarColors: root.useCalendarColors
             contentForeground: root.contentForeground
             contentFontFamily: root.contentFontFamily
@@ -271,7 +271,6 @@ Panel {
                   showSeparator: index > 0 || heroCard.visible
                   contentForeground: root.contentForeground
                   contentFontFamily: root.contentFontFamily
-                  showCalendarLabel: root.showCalendarLabel
                   useCalendarColors: root.useCalendarColors
                   cursorChecker: root.cursorOn
                   cursorIndex: root.cursorIndex
@@ -282,6 +281,20 @@ Panel {
                 }
               }
             }
+          }
+
+          PanelSeparator {
+            visible: root.useCalendarColors && root.calendarLegend && root.calendarLegend.length > 1
+            foreground: root.contentForeground
+            strength: 0.07
+          }
+
+          CalendarLegend {
+            visible: root.useCalendarColors && root.calendarLegend && root.calendarLegend.length > 1
+            legend: root.calendarLegend
+            contentForeground: root.contentForeground
+            contentFontFamily: root.contentFontFamily
+            useCalendarColors: root.useCalendarColors
           }
         }
       }

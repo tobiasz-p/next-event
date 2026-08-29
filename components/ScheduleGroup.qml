@@ -10,7 +10,6 @@ Item {
   property bool showSeparator: false
   property color contentForeground: Color.foreground
   property string contentFontFamily: Style.font.family
-  property bool showCalendarLabel: true
   property bool useCalendarColors: true
   property var cursorChecker: null
   property int cursorIndex: -1
@@ -56,7 +55,6 @@ Item {
         meeting: modelData
         contentForeground: root.contentForeground
         contentFontFamily: root.contentFontFamily
-        showCalendarLabel: root.showCalendarLabel
         useCalendarColors: root.useCalendarColors
         hasCursor: (root.cursorActive && root.cursorChecker)
           ? root.cursorChecker("event", root.groupIndex, index)

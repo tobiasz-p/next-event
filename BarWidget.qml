@@ -55,6 +55,7 @@ BarWidget {
   property var meetings: []
   property var upcomingToday: []
   property var scheduleGroups: []
+  property var calendarLegend: []
   property var nextMeeting: null
   property date lastUpdated: new Date(0)
   property bool lastFetchFailed: false
@@ -176,12 +177,14 @@ BarWidget {
       lookaheadDays: root.showDaysAhead,
       showOnlyWithVideoLink: root.showOnlyWithVideoLink,
       maxMeetingRows: root.maxMeetingRows,
-      maxScheduleRows: root.maxScheduleRows
+      maxScheduleRows: root.maxScheduleRows,
+      feeds: root.icsFeeds
     })
     root.meetings = state.meetings
     root.upcomingToday = state.upcomingToday
     root.scheduleGroups = state.scheduleGroups
     root.nextMeeting = state.nextMeeting
+    root.calendarLegend = state.calendarLegend || []
     if (lastUpdatedDate) root.lastUpdated = lastUpdatedDate
     root.meetingDataChanged()
   }

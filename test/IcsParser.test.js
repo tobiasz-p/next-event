@@ -114,5 +114,20 @@ describe("IcsParser", () => {
       const events = IcsParser.parse(ics, { now: NOW, lookaheadDays: 7 })
       assert.strictEqual(events.length, 4)
     })
+
+    it("parses COLOR property and supports options.calendarColor and options.feedLabel", () => {
+      const icsWithColor = feed(["COLOR:#ea4335"])
+      const events1 = IcsParser.parse(icsWithColor, { now: NOW })
+      assert.strictEqual(events1[0].calendarColor, "#ea4335")
+
+      const icsPlain = feed([])
+      const events2 = IcsParser.parse(icsPlain, {
+        now: NOW,
+        calendarColor: "#4285f4",
+        feedLabel: "Work"
+      })
+      assert.strictEqual(events2[0].calendarColor, "#4285f4")
+      assert.strictEqual(events2[0].feedLabel, "Work")
+    })
   })
 })

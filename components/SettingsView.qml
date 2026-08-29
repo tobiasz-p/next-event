@@ -24,7 +24,8 @@ Item {
     for (var i = 0; i < parsed.length; i++) {
       list.push({
         label: parsed[i].label ? String(parsed[i].label) : "",
-        url: parsed[i].url ? String(parsed[i].url) : ""
+        url: parsed[i].url ? String(parsed[i].url) : "",
+        color: parsed[i].color ? String(parsed[i].color) : Model.pickCalendarColor(parsed[i].label || parsed[i].url, i)
       })
     }
     root.feedsList = list
@@ -37,7 +38,10 @@ Item {
       var u = String((item && item.url) || "").trim()
       if (!u) continue
       var l = String((item && item.label) || "").trim()
-      if (l) parts.push(l + "|" + u)
+      var c = String((item && item.color) || "").trim()
+      if (l && c) parts.push(l + "|" + c + "|" + u)
+      else if (l) parts.push(l + "|" + u)
+      else if (c) parts.push(c + "|" + u)
       else parts.push(u)
     }
     root.settingChanged("icsUrl", parts.join(","))
@@ -45,7 +49,7 @@ Item {
 
   function addFeed() {
     var copy = root.feedsList.slice()
-    copy.push({ label: "", url: "" })
+    copy.push({ label: "", url: "", color: Model.pickCalendarColor("", copy.length) })
     root.feedsList = copy
   }
 
@@ -59,7 +63,7 @@ Item {
   function updateFeedLabel(idx, newLabel) {
     if (idx < 0 || idx >= root.feedsList.length) return
     var copy = root.feedsList.slice()
-    copy[idx] = { label: newLabel, url: copy[idx].url }
+    copy[idx] = { label: newLabel, url: copy[idx].url, color: copy[idx].color }
     root.feedsList = copy
     serializeAndPersistFeeds()
   }
@@ -67,7 +71,15 @@ Item {
   function updateFeedUrl(idx, newUrl) {
     if (idx < 0 || idx >= root.feedsList.length) return
     var copy = root.feedsList.slice()
-    copy[idx] = { label: copy[idx].label, url: newUrl }
+    copy[idx] = { label: copy[idx].label, url: newUrl, color: copy[idx].color }
+    root.feedsList = copy
+    serializeAndPersistFeeds()
+  }
+
+  function updateFeedColor(idx, newColor) {
+    if (idx < 0 || idx >= root.feedsList.length) return
+    var copy = root.feedsList.slice()
+    copy[idx] = { label: copy[idx].label, url: copy[idx].url, color: newColor }
     root.feedsList = copy
     serializeAndPersistFeeds()
   }
@@ -187,11 +199,13 @@ Item {
             feedIndex: index
             feedLabel: modelData.label || ""
             feedUrl: modelData.url || ""
+            feedColor: modelData.color || ""
             contentForeground: root.contentForeground
             contentFontFamily: root.contentFontFamily
 
             onLabelModified: function(val) { root.updateFeedLabel(index, val) }
             onUrlModified: function(val) { root.updateFeedUrl(index, val) }
+            onColorModified: function(val) { root.updateFeedColor(index, val) }
             onRemoveRequested: root.removeFeed(index)
           }
         }

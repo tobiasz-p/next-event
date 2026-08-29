@@ -31,6 +31,8 @@ Item {
         spacing: Style.space(5)
 
         Rectangle {
+          id: legendDot
+          anchors.verticalCenter: legendText.verticalCenter
           implicitWidth: Style.space(Tokens.dotSize)
           implicitHeight: Style.space(Tokens.dotSize)
           radius: width * 0.5
@@ -43,6 +45,7 @@ Item {
         }
 
         Text {
+          id: legendText
           text: modelData.name || ""
           color: Qt.darker(root.contentForeground, Tokens.dimMuted)
           font.family: root.contentFontFamily

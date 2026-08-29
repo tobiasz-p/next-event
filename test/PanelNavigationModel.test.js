@@ -16,23 +16,32 @@ describe("PanelNavigationModel", () => {
   const scheduleGroups = [{ key: 20260828, title: "TODAY", items: [nextMeeting] }]
 
   describe("rebuildActionItems()", () => {
-    it("builds refresh, join, and calendar actions when hero is visible with meet link", () => {
+    it("builds refresh, settings, join, and calendar actions when hero is visible with meet link", () => {
       const nav = new PanelNavigationModel()
       const items = nav.rebuildActionItems(true, nextMeeting, scheduleGroups)
-      assert.strictEqual(items.length, 4)
+      assert.strictEqual(items.length, 5)
       assert.strictEqual(items[0].kind, "refresh")
-      assert.strictEqual(items[1].kind, "join")
-      assert.strictEqual(items[2].kind, "calendar")
-      assert.strictEqual(items[3].kind, "event")
+      assert.strictEqual(items[1].kind, "settings")
+      assert.strictEqual(items[2].kind, "join")
+      assert.strictEqual(items[3].kind, "calendar")
+      assert.strictEqual(items[4].kind, "event")
     })
 
     it("omits join action when meeting lacks video URL", () => {
       const nav = new PanelNavigationModel()
       const noMeet = new CalendarEvent({ uid: "m2", title: "Focus" })
       const items = nav.rebuildActionItems(true, noMeet, [])
-      assert.strictEqual(items.length, 2)
+      assert.strictEqual(items.length, 3)
       assert.strictEqual(items[0].kind, "refresh")
-      assert.strictEqual(items[1].kind, "calendar")
+      assert.strictEqual(items[1].kind, "settings")
+      assert.strictEqual(items[2].kind, "calendar")
+    })
+
+    it("builds only settings action when in settings view", () => {
+      const nav = new PanelNavigationModel()
+      const items = nav.rebuildActionItems(true, nextMeeting, scheduleGroups, true)
+      assert.strictEqual(items.length, 1)
+      assert.strictEqual(items[0].kind, "settings")
     })
   })
 
@@ -72,7 +81,7 @@ describe("PanelNavigationModel", () => {
       nav.moveCursor(1)
 
       assert.strictEqual(nav.isCursorOn("refresh"), true)
-      assert.strictEqual(nav.isCursorOn("join"), false)
+      assert.strictEqual(nav.isCursorOn("settings"), false)
     })
   })
 
@@ -82,7 +91,7 @@ describe("PanelNavigationModel", () => {
       nav.rebuildActionItems(true, nextMeeting, scheduleGroups)
 
       const idx = nav.pointCursorAt("event", 0, 0)
-      assert.strictEqual(idx, 3)
+      assert.strictEqual(idx, 4)
       assert.strictEqual(nav.isCursorOn("event", 0, 0), true)
     })
   })

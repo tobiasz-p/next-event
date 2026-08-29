@@ -26,11 +26,13 @@ Panel {
   property var calendarLegend: []
   property var next: null
   property date now: hostWidget ? hostWidget.now : new Date()
+  property bool inSettingsView: false
 
   readonly property color contentForeground: bar ? bar.barForeground : Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
 
   function open() {
+    root.inSettingsView = false
     reload()
     root.controller.show()
   }
@@ -42,6 +44,23 @@ Panel {
   function toggle() {
     if (root.opened) root.close()
     else root.open()
+  }
+
+  function toggleSettingsView() {
+    root.inSettingsView = !root.inSettingsView
+    root.reload()
+  }
+
+  function persistSettings(values) {
+    var entry = { id: root.moduleName }
+    var current = (root.hostWidget && root.hostWidget.settings) ? root.hostWidget.settings : (root.settings || {})
+    for (var existing in current) if (existing !== "id") entry[existing] = current[existing]
+    for (var key in values) entry[key] = values[key]
+
+    root.settings = entry
+    if (root.hostWidget && "settings" in root.hostWidget) root.hostWidget.settings = entry
+    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
+      root.bar.shell.updateEntryInline(root.moduleName, entry)
   }
 
   function switchPanel(direction) {
@@ -57,10 +76,12 @@ Panel {
     root.next = root.hostWidget.nextMeeting || null
 
     var configured = !!root.hostWidget.configured
-    setupGuide.visible = !configured
-    heroCard.visible = configured && !!root.next
-    emptySchedule.visible = configured && root.scheduleGroups.length === 0
-    scheduleContainer.visible = configured && root.scheduleGroups.length > 0
+    setupGuide.visible = !root.inSettingsView && !configured
+    heroCard.visible = !root.inSettingsView && configured && !!root.next
+    emptySchedule.visible = !root.inSettingsView && configured && root.scheduleGroups.length === 0
+    scheduleContainer.visible = !root.inSettingsView && configured && root.scheduleGroups.length > 0
+    settingsView.visible = root.inSettingsView
+    headerBar.inSettingsView = root.inSettingsView
     root.rebuildActionItems()
   }
 
@@ -86,7 +107,7 @@ Panel {
   property bool cursorActive: false
 
   function rebuildActionItems() {
-    root.actionItems = navModel.rebuildActionItems(heroCard.visible, root.next, root.scheduleGroups)
+    root.actionItems = navModel.rebuildActionItems(heroCard.visible, root.next, root.scheduleGroups, root.inSettingsView)
     root.cursorIndex = navModel.cursorIndex
     root.cursorActive = navModel.cursorActive
   }
@@ -101,6 +122,7 @@ Panel {
     var activeItem = navModel.activeItem()
     if (!activeItem) return
     if (activeItem.kind === "refresh") root.refreshNow()
+    else if (activeItem.kind === "settings") root.toggleSettingsView()
     else if (activeItem.kind === "join") root.join(root.next)
     else if (activeItem.kind === "calendar") root.openInCalendar(root.next)
     else if (activeItem.kind === "event") {
@@ -130,6 +152,7 @@ Panel {
     if (!activeItem) return
     var target = null
     if (activeItem.kind === "refresh") target = headerBar.refreshBtn
+    else if (activeItem.kind === "settings") target = headerBar.settingsBtn
     else if (activeItem.kind === "join") target = heroCard.joinBtn
     else if (activeItem.kind === "calendar") target = heroCard.openCalendarBtn
     else {
@@ -146,8 +169,10 @@ Panel {
   onHostWidgetChanged: Qt.callLater(root.reload)
 
   onOpenedChanged: {
-    if (opened) root.reload()
-    else {
+    if (opened) {
+      root.inSettingsView = false
+      root.reload()
+    } else {
       root.cursorActive = false
       if (root.navModel) root.navModel.cursorActive = false
     }
@@ -171,15 +196,26 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
-      onCloseRequested: root.close()
+      blocked: root.inSettingsView && settingsView.isEditing
+      onCloseRequested: {
+        if (root.inSettingsView) {
+          root.inSettingsView = false
+          root.reload()
+        } else {
+          root.close()
+        }
+      }
       onTabRequested: function(direction) { root.switchPanel(direction) }
-      onMoveRequested: function(deltaX, deltaY) { if (deltaY !== 0) root.moveCursor(deltaY) }
-      onActivateRequested: root.activateCursor()
+      onMoveRequested: function(deltaX, deltaY) { if (!root.inSettingsView && deltaY !== 0) root.moveCursor(deltaY) }
+      onActivateRequested: if (!root.inSettingsView) root.activateCursor()
       onTextKey: function(key) {
         if (!root.hostWidget) return
-        if (key === root.hostWidget.keyRefresh) root.refreshNow()
-        else if (key === root.hostWidget.keyJoin && root.next && root.next.meetUrl) root.join(root.next)
-        else if (key === root.hostWidget.keyCalendar && root.next) root.openInCalendar(root.next)
+        if (key === root.hostWidget.keySettings) root.toggleSettingsView()
+        else if (!root.inSettingsView) {
+          if (key === root.hostWidget.keyRefresh) root.refreshNow()
+          else if (key === root.hostWidget.keyJoin && root.next && root.next.meetUrl) root.join(root.next)
+          else if (key === root.hostWidget.keyCalendar && root.next) root.openInCalendar(root.next)
+        }
       }
 
       Flickable {
@@ -210,9 +246,27 @@ Panel {
             )
             isError: root.lastFetchFailed || root.offlineFeedCount > 0
             fetching: root.fetching
+            inSettingsView: root.inSettingsView
             cursorOnRefresh: root.cursorOn("refresh")
+            cursorOnSettings: root.cursorOn("settings")
             onRefreshRequested: root.refreshNow()
+            onSettingsRequested: root.toggleSettingsView()
             onRefreshHovered: function(isHovered) { if (isHovered) root.pointCursorAt("refresh") }
+            onSettingsHovered: function(isHovered) { if (isHovered) root.pointCursorAt("settings") }
+          }
+
+          SettingsView {
+            id: settingsView
+            visible: false
+            hostWidget: root.hostWidget
+            contentForeground: root.contentForeground
+            contentFontFamily: root.contentFontFamily
+            onSettingChanged: function(key, val) {
+              var update = {}
+              update[key] = val
+              root.persistSettings(update)
+            }
+            onCloseRequested: root.toggleSettingsView()
           }
 
           SetupGuide {
@@ -284,13 +338,13 @@ Panel {
           }
 
           PanelSeparator {
-            visible: root.useCalendarColors && root.calendarLegend && root.calendarLegend.length > 1
+            visible: !root.inSettingsView && root.useCalendarColors && root.calendarLegend && root.calendarLegend.length > 1
             foreground: root.contentForeground
             strength: Tokens.separatorLegend
           }
 
           CalendarLegend {
-            visible: root.useCalendarColors && root.calendarLegend && root.calendarLegend.length > 1
+            visible: !root.inSettingsView && root.useCalendarColors && root.calendarLegend && root.calendarLegend.length > 1
             legend: root.calendarLegend
             contentForeground: root.contentForeground
             contentFontFamily: root.contentFontFamily

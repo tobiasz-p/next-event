@@ -1,9 +1,15 @@
 singleton Tokens 1.0 Tokens.qml
 CalendarLegend 1.0 CalendarLegend.qml
 EmptySchedule 1.0 EmptySchedule.qml
+FeedCard 1.0 FeedCard.qml
 HeaderBar 1.0 HeaderBar.qml
 HeroCard 1.0 HeroCard.qml
 ScheduleGroup 1.0 ScheduleGroup.qml
 ScheduleRow 1.0 ScheduleRow.qml
+SettingField 1.0 SettingField.qml
+SettingKeyInput 1.0 SettingKeyInput.qml
+SettingStepper 1.0 SettingStepper.qml
+SettingsView 1.0 SettingsView.qml
 SetupCard 1.0 SetupCard.qml
 SetupGuide 1.0 SetupGuide.qml
+SourceModeSwitcher 1.0 SourceModeSwitcher.qml

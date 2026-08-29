@@ -242,7 +242,8 @@ Panel {
               root.offlineFeedCount,
               root.hostWidget ? root.hostWidget.lastUpdated : null,
               root.now,
-              root.hostWidget && root.hostWidget.configured
+              root.hostWidget && root.hostWidget.configured,
+              root.hostWidget ? root.hostWidget.use12Hour : false
             )
             isError: root.lastFetchFailed || root.offlineFeedCount > 0
             fetching: root.fetching
@@ -283,6 +284,7 @@ Panel {
             now: root.now
             inMeeting: root.inMeeting
             useCalendarColors: root.useCalendarColors
+            use12Hour: root.hostWidget ? root.hostWidget.use12Hour : false
             contentForeground: root.contentForeground
             contentFontFamily: root.contentFontFamily
             cursorOnJoin: root.cursorOn("join")
@@ -326,6 +328,7 @@ Panel {
                   contentForeground: root.contentForeground
                   contentFontFamily: root.contentFontFamily
                   useCalendarColors: root.useCalendarColors
+                  use12Hour: root.hostWidget ? root.hostWidget.use12Hour : false
                   cursorChecker: root.cursorOn
                   cursorIndex: root.cursorIndex
                   cursorActive: root.cursorActive

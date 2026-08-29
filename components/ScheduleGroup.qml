@@ -11,6 +11,7 @@ Item {
   property color contentForeground: Color.foreground
   property string contentFontFamily: Style.font.family
   property bool useCalendarColors: true
+  property bool use12Hour: false
   property var cursorChecker: null
   property int cursorIndex: -1
   property bool cursorActive: false
@@ -56,6 +57,7 @@ Item {
         contentForeground: root.contentForeground
         contentFontFamily: root.contentFontFamily
         useCalendarColors: root.useCalendarColors
+        use12Hour: root.use12Hour
         hasCursor: (root.cursorActive && root.cursorChecker)
           ? root.cursorChecker("event", root.groupIndex, index)
           : false

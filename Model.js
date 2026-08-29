@@ -33,6 +33,10 @@ var DEFAULT_KEY_JOIN = "m"
 var DEFAULT_KEY_CALENDAR = "o"
 var DEFAULT_KEY_SETTINGS = ","
 
+var TIME_FORMAT_12 = "12"
+var TIME_FORMAT_24 = "24"
+var DEFAULT_TIME_FORMAT = "24"
+
 var SOURCE_MODE_ICS = "ics"
 var SOURCE_MODE_JSON = "json"
 
@@ -161,6 +165,9 @@ var Constants = {
   DEFAULT_KEY_SETTINGS: DEFAULT_KEY_SETTINGS,
   DEFAULT_KEY_JOIN: DEFAULT_KEY_JOIN,
   DEFAULT_KEY_CALENDAR: DEFAULT_KEY_CALENDAR,
+  TIME_FORMAT_12: TIME_FORMAT_12,
+  TIME_FORMAT_24: TIME_FORMAT_24,
+  DEFAULT_TIME_FORMAT: DEFAULT_TIME_FORMAT,
   SOURCE_MODE_ICS: SOURCE_MODE_ICS,
   SOURCE_MODE_JSON: SOURCE_MODE_JSON,
   LABEL_TODAY: LABEL_TODAY,
@@ -1429,6 +1436,14 @@ class FeedConfigParser {
     return fallback === true
   }
 
+  static parseTimeFormat(value) {
+    return value === "12" || value === 12 ? TIME_FORMAT_12 : TIME_FORMAT_24
+  }
+
+  static is12Hour(value) {
+    return value === "12" || value === 12
+  }
+
   static feedsFromArray(arr) {
     var feeds = []
     for (var i = 0; i < arr.length; i++) {
@@ -1711,15 +1726,22 @@ class DisplayFormatter {
     return ScheduleAggregator.isEventAllDay(event)
   }
 
-  static hm(date) {
+  static hm(date, use12Hour) {
     if (!date || isNaN(date.getTime())) return ""
-    return DateTimeUtils.pad2(date.getHours()) + ":" + DateTimeUtils.pad2(date.getMinutes())
+    var hour = date.getHours()
+    if (use12Hour === true) {
+      var suffix = hour >= 12 ? "PM" : "AM"
+      var displayHour = hour % 12
+      if (displayHour === 0) displayHour = 12
+      return displayHour + ":" + DateTimeUtils.pad2(date.getMinutes()) + " " + suffix
+    }
+    return DateTimeUtils.pad2(hour) + ":" + DateTimeUtils.pad2(date.getMinutes())
   }
 
-  static timeRange(start, end, allDay) {
+  static timeRange(start, end, allDay, use12Hour) {
     if (allDay) return LABEL_ALL_DAY
     if (!start) return ""
-    return DisplayFormatter.hm(start) + "–" + DisplayFormatter.hm(end)
+    return DisplayFormatter.hm(start, use12Hour) + "–" + DisplayFormatter.hm(end, use12Hour)
   }
 
   static dayLabel(start, now) {
@@ -1747,7 +1769,7 @@ class DisplayFormatter {
     return formattedDate
   }
 
-  static meetingTimeLabel(start, end, now, allDay) {
+  static meetingTimeLabel(start, end, now, allDay, use12Hour) {
     var isAllDay = DisplayFormatter.isEventAllDay({ start: start, end: end, allDay: allDay })
     var labels = []
     if (DateTimeUtils.isSameDay(start, now)) labels.push(LABEL_TODAY)
@@ -1761,12 +1783,12 @@ class DisplayFormatter {
     if (isAllDay) {
       labels.push(LABEL_ALL_DAY)
     } else if (start && end) {
-      labels.push(DisplayFormatter.timeRange(start, end, false))
+      labels.push(DisplayFormatter.timeRange(start, end, false, use12Hour))
     }
     return labels.join(" · ")
   }
 
-  static relativeStatus(next, now) {
+  static relativeStatus(next, now, use12Hour) {
     if (!next || !next.start || !next.end || DisplayFormatter.isEventAllDay(next)) return ""
     var start = next.start.getTime()
     var end = next.end.getTime()
@@ -1774,7 +1796,7 @@ class DisplayFormatter {
     if (nowMs < start) {
       var minutes = Math.max(1, Math.round((start - nowMs) / MS_PER_MINUTE))
       return minutes >= MINUTES_PER_HOUR
-        ? "starts at " + DisplayFormatter.hm(next.start)
+        ? "starts at " + DisplayFormatter.hm(next.start, use12Hour)
         : "starts in " + minutes + " min"
     }
     if (nowMs < end) {
@@ -1788,7 +1810,7 @@ class DisplayFormatter {
     return ""
   }
 
-  static formatLabel(next, now, maxTitleLength) {
+  static formatLabel(next, now, maxTitleLength, use12Hour) {
     if (!next || !next.start) return ""
     var title = String(next.title || LABEL_UNTITLED)
     var limit = Math.max(
@@ -1824,10 +1846,13 @@ class DisplayFormatter {
       var minutesBefore = Math.max(1, Math.round((start - nowMs) / MS_PER_MINUTE))
       suffix = minutesBefore <= 1 ? " · in a min" : " · in " + minutesBefore + " min"
     } else {
-      suffix = " · " + DisplayFormatter.hm(next.start)
+      suffix = " · " + DisplayFormatter.hm(next.start, use12Hour)
       if (!DateTimeUtils.isSameDay(next.start, now))
         suffix =
-          " · " + DisplayFormatter.dayLabel(next.start, now) + " " + DisplayFormatter.hm(next.start)
+          " · " +
+          DisplayFormatter.dayLabel(next.start, now) +
+          " " +
+          DisplayFormatter.hm(next.start, use12Hour)
     }
     var titleLimit = Math.max(MIN_TITLE_CHARS, limit - suffix.length)
     if (title.length > titleLimit) title = title.slice(0, Math.max(1, titleLimit - 1)) + "…"
@@ -1844,14 +1869,14 @@ class DisplayFormatter {
     return remainingMinutes > 0 ? hours + "h " + remainingMinutes + "m" : hours + "h"
   }
 
-  static formatUpdated(date, now) {
+  static formatUpdated(date, now, use12Hour) {
     if (!date || isNaN(date.getTime()) || date.getTime() <= 0) return ""
     var minutesAgo = Math.floor((now.getTime() - date.getTime()) / MS_PER_MINUTE)
     if (minutesAgo < 1) return LABEL_JUST_NOW
     if (minutesAgo < MINUTES_PER_HOUR) return minutesAgo + "m ago"
     var hoursAgo = Math.floor(minutesAgo / MINUTES_PER_HOUR)
     if (hoursAgo < HOURS_PER_DAY) return hoursAgo + "h ago"
-    return DisplayFormatter.hm(date)
+    return DisplayFormatter.hm(date, use12Hour)
   }
 
   static eventCalendarUrl(event, base) {
@@ -1879,21 +1904,29 @@ class DisplayFormatter {
     return parts.join("  ·  ")
   }
 
-  static heroTimeStatus(next, now) {
+  static heroTimeStatus(next, now, use12Hour) {
     if (!next) return ""
     var isAllDay = DisplayFormatter.isEventAllDay(next)
-    var label = DisplayFormatter.meetingTimeLabel(next.start, next.end, now, isAllDay)
-    var status = DisplayFormatter.relativeStatus(next, now)
+    var label = DisplayFormatter.meetingTimeLabel(next.start, next.end, now, isAllDay, use12Hour)
+    var status = DisplayFormatter.relativeStatus(next, now, use12Hour)
     return status ? label + " · " + status : label
   }
 
-  static barLabel(configured, nextMeeting, now, maxTitleLength) {
+  static barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour) {
     if (!configured || !nextMeeting) return ""
     var icon = nextMeeting.meetUrl ? ICON_MEETING_VIDEO + "  " : ICON_CALENDAR_EVENT + "  "
-    return icon + DisplayFormatter.formatLabel(nextMeeting, now, maxTitleLength)
+    return icon + DisplayFormatter.formatLabel(nextMeeting, now, maxTitleLength, use12Hour)
   }
 
-  static headerStatus(fetching, lastFetchFailed, offlineFeedCount, lastUpdated, now, configured) {
+  static headerStatus(
+    fetching,
+    lastFetchFailed,
+    offlineFeedCount,
+    lastUpdated,
+    now,
+    configured,
+    use12Hour
+  ) {
     if (fetching) return STATUS_UPDATING
     if (lastFetchFailed) return STATUS_OFFLINE_CACHED
     if (offlineFeedCount > 0) {
@@ -1902,7 +1935,7 @@ class DisplayFormatter {
       )
     }
     if (configured && lastUpdated) {
-      return DisplayFormatter.formatUpdated(lastUpdated, now)
+      return DisplayFormatter.formatUpdated(lastUpdated, now, use12Hour)
     }
     return ""
   }
@@ -1912,6 +1945,7 @@ class DisplayFormatter {
     var lastFetchFailed = options.lastFetchFailed === true
     var offlineFeedCount = options.offlineFeedCount || 0
     var showCalendarLabel = options.showCalendarLabel !== false
+    var use12Hour = options.use12Hour === true
 
     if (!configured) return "NextEvent — No calendar configured\nClick to set up"
     if (!nextMeeting) {
@@ -1929,8 +1963,8 @@ class DisplayFormatter {
     }
     var title = nextMeeting.title || LABEL_UNTITLED
     var isAllDay = DisplayFormatter.isEventAllDay(nextMeeting)
-    var range = DisplayFormatter.timeRange(nextMeeting.start, nextMeeting.end, isAllDay)
-    var status = DisplayFormatter.relativeStatus(nextMeeting, now)
+    var range = DisplayFormatter.timeRange(nextMeeting.start, nextMeeting.end, isAllDay, use12Hour)
+    var status = DisplayFormatter.relativeStatus(nextMeeting, now, use12Hour)
     var line = title + " · " + range + (status ? " (" + status + ")" : "")
     if (showCalendarLabel && nextMeeting.feedLabel) line = nextMeeting.feedLabel + " · " + line
     if (lastFetchFailed) line += " · " + STATUS_OFFLINE
@@ -2074,29 +2108,38 @@ function meetLabel(url) {
 function eventCalendarUrl(event, base) {
   return DisplayFormatter.eventCalendarUrl(event, base)
 }
-function formatLabel(next, now, maxTitleLength) {
-  return DisplayFormatter.formatLabel(next, now, maxTitleLength)
+function formatLabel(next, now, maxTitleLength, use12Hour) {
+  return DisplayFormatter.formatLabel(next, now, maxTitleLength, use12Hour)
 }
-function relativeStatus(next, now) {
-  return DisplayFormatter.relativeStatus(next, now)
+function relativeStatus(next, now, use12Hour) {
+  return DisplayFormatter.relativeStatus(next, now, use12Hour)
 }
-function timeRange(start, end, allDay) {
-  return DisplayFormatter.timeRange(start, end, allDay)
+function timeRange(start, end, allDay, use12Hour) {
+  return DisplayFormatter.timeRange(start, end, allDay, use12Hour)
 }
-function meetingTimeLabel(start, end, now, allDay) {
-  return DisplayFormatter.meetingTimeLabel(start, end, now, allDay)
+function meetingTimeLabel(start, end, now, allDay, use12Hour) {
+  return DisplayFormatter.meetingTimeLabel(start, end, now, allDay, use12Hour)
 }
-function barLabel(configured, nextMeeting, now, maxTitleLength) {
-  return DisplayFormatter.barLabel(configured, nextMeeting, now, maxTitleLength)
+function barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour) {
+  return DisplayFormatter.barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour)
 }
-function headerStatus(fetching, lastFetchFailed, offlineFeedCount, lastUpdated, now, configured) {
+function headerStatus(
+  fetching,
+  lastFetchFailed,
+  offlineFeedCount,
+  lastUpdated,
+  now,
+  configured,
+  use12Hour
+) {
   return DisplayFormatter.headerStatus(
     fetching,
     lastFetchFailed,
     offlineFeedCount,
     lastUpdated,
     now,
-    configured
+    configured,
+    use12Hour
   )
 }
 function tooltipLine(configured, nextMeeting, now, options) {
@@ -2105,17 +2148,17 @@ function tooltipLine(configured, nextMeeting, now, options) {
 function heroHeaderMeta(next) {
   return DisplayFormatter.heroHeaderMeta(next)
 }
-function heroTimeStatus(next, now) {
-  return DisplayFormatter.heroTimeStatus(next, now)
+function heroTimeStatus(next, now, use12Hour) {
+  return DisplayFormatter.heroTimeStatus(next, now, use12Hour)
 }
-function hm(date) {
-  return DisplayFormatter.hm(date)
+function hm(date, use12Hour) {
+  return DisplayFormatter.hm(date, use12Hour)
 }
 function formatDuration(start, end) {
   return DisplayFormatter.formatDuration(start, end)
 }
-function formatUpdated(date, now) {
-  return DisplayFormatter.formatUpdated(date, now)
+function formatUpdated(date, now, use12Hour) {
+  return DisplayFormatter.formatUpdated(date, now, use12Hour)
 }
 function dayLabel(start, now) {
   return DisplayFormatter.dayLabel(start, now)
@@ -2125,6 +2168,12 @@ function daySectionTitle(date, now) {
 }
 function isEventAllDay(event) {
   return ScheduleAggregator.isEventAllDay(event)
+}
+function parseTimeFormat(value) {
+  return FeedConfigParser.parseTimeFormat(value)
+}
+function is12Hour(value) {
+  return FeedConfigParser.is12Hour(value)
 }
 
 // --- Module Exports Guard for Node.js --------------------------------------
@@ -2154,6 +2203,8 @@ if (typeof module !== "undefined" && module.exports) {
     dedupeEvents: dedupeEvents,
     normalizeKey: normalizeKey,
     toBoolean: toBoolean,
+    parseTimeFormat: parseTimeFormat,
+    is12Hour: is12Hour,
     buildUpcoming: buildUpcoming,
     upcomingToday: upcomingToday,
     buildScheduleGroups: buildScheduleGroups,

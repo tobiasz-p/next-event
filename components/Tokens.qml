@@ -21,6 +21,7 @@ QtObject {
   readonly property real barHeight: 16
 
   readonly property real colTime: 44
+  readonly property real colTime12Hour: 62
   readonly property real colDuration: 34
   readonly property real colIcon: 16
 

@@ -340,6 +340,16 @@ Item {
         fontFamily: root.contentFontFamily
         onClicked: root.settingChanged("colorOnBar", !checked)
       }
+
+      Toggle {
+        width: parent.width
+        label: "12-hour time format"
+        description: "Display times using 12-hour AM/PM format instead of 24-hour clock"
+        checked: root.hostWidget ? root.hostWidget.use12Hour : false
+        foreground: root.contentForeground
+        fontFamily: root.contentFontFamily
+        onClicked: root.settingChanged("timeFormat", checked ? Model.TIME_FORMAT_24 : Model.TIME_FORMAT_12)
+      }
     }
 
     PanelSeparator {

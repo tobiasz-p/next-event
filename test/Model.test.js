@@ -26,6 +26,9 @@ describe("Model (Facade)", () => {
   describe("public API delegates", () => {
     it("delegates helper calls to appropriate domain classes", () => {
       assert.strictEqual(Model.toBoolean("true", false), true)
+      assert.strictEqual(Model.parseTimeFormat("12"), "12")
+      assert.strictEqual(Model.is12Hour("12"), true)
+      assert.strictEqual(Model.is12Hour("24"), false)
       assert.strictEqual(Model.meetLabel("https://meet.google.com/abc-defg-hij"), "Meet")
 
       const now = new Date(2026, 7, 28, 9, 0)
@@ -40,6 +43,8 @@ describe("Model (Facade)", () => {
       assert.strictEqual(state.nextMeeting.title, "Team Standup")
       assert.strictEqual(Model.heroHeaderMeta(ev), "30m  ·    Meet")
       assert.strictEqual(Model.barLabel(true, ev, now, 30), "  Team Standup · in 60 min")
+      assert.strictEqual(Model.hm(ev.start, true), "10:00 AM")
+      assert.strictEqual(Model.timeRange(ev.start, ev.end, false, true), "10:00 AM–10:30 AM")
       assert.deepStrictEqual(Model.buildCalendarLegend([ev], []), [])
     })
   })

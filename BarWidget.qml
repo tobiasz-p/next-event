@@ -25,6 +25,8 @@ BarWidget {
   readonly property int refreshMinutes: Math.max(1, parseInt(setting("refreshMinutes", Model.DEFAULT_REFRESH_MINUTES), 10) || Model.DEFAULT_REFRESH_MINUTES)
   readonly property int showDaysAhead: Math.max(1, parseInt(setting("showDaysAhead", Model.DEFAULT_LOOKAHEAD_DAYS), 10) || Model.DEFAULT_LOOKAHEAD_DAYS)
   readonly property int maxTitleLength: Math.max(Model.MIN_MAX_TITLE_LENGTH, parseInt(setting("maxTitleLength", Model.DEFAULT_MAX_TITLE_LENGTH), 10) || Model.DEFAULT_MAX_TITLE_LENGTH)
+  readonly property string timeFormat: String(setting("timeFormat", Model.DEFAULT_TIME_FORMAT) || Model.DEFAULT_TIME_FORMAT).trim()
+  readonly property bool use12Hour: Model.is12Hour(timeFormat)
   readonly property int maxFeedSizeMiB: Math.max(1, parseInt(setting("maxFeedSizeMiB", Model.DEFAULT_MAX_FEED_SIZE_MIB), 10) || Model.DEFAULT_MAX_FEED_SIZE_MIB)
   readonly property bool showOnlyWithVideoLink: Model.toBoolean(setting("showOnlyWithVideoLink", false), false)
   readonly property bool showCalendarLabel: Model.toBoolean(setting("showCalendarLabel", true), true)
@@ -77,7 +79,7 @@ BarWidget {
   property string currentFeedLabel: ""
   property string feedOutput: ""
 
-  readonly property string label: Model.barLabel(root.configured, root.nextMeeting, root.now, root.maxTitleLength)
+  readonly property string label: Model.barLabel(root.configured, root.nextMeeting, root.now, root.maxTitleLength, root.use12Hour)
   readonly property bool inMeeting: nextMeeting
     && !nextMeeting.allDay
     && nextMeeting.start && nextMeeting.end
@@ -387,6 +389,7 @@ BarWidget {
   readonly property string tooltipLine: Model.tooltipLine(root.configured, root.nextMeeting, root.now, {
     lastFetchFailed: root.lastFetchFailed,
     offlineFeedCount: root.offlineFeedCount,
-    showCalendarLabel: root.showCalendarLabel
+    showCalendarLabel: root.showCalendarLabel,
+    use12Hour: root.use12Hour
   })
 }

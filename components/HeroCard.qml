@@ -10,7 +10,6 @@ Item {
   property var next: null
   property date now: new Date()
   property bool inMeeting: false
-  property bool showCalendarLabel: true
   property bool useCalendarColors: true
   property color contentForeground: Color.foreground
   property string contentFontFamily: Style.font.family
@@ -76,16 +75,6 @@ Item {
 
         Item { Layout.fillWidth: true }
 
-        CalendarBadge {
-          visible: root.showCalendarLabel && !!(root.next && (root.next.feedLabel || (root.useCalendarColors && root.next.calendarName)))
-          Layout.alignment: Qt.AlignVCenter
-          label: root.next ? (root.next.feedLabel || root.next.calendarName || "") : ""
-          hasCalendarColor: root.useCalendarColors && !!(root.next && root.next.calendarColor)
-          calendarColor: (root.next && root.next.calendarColor) ? root.next.calendarColor : Color.accent
-          contentForeground: root.inMeeting ? Color.accent : root.contentForeground
-          contentFontFamily: root.contentFontFamily
-        }
-
         Text {
           visible: !!root.next
           text: Model.heroHeaderMeta(root.next)
@@ -98,12 +87,14 @@ Item {
 
       Text {
         width: parent.width
-        text: root.next ? String(root.next.title || "(Untitled)") : ""
+        text: root.next ? (root.next.title || "(Untitled)") : ""
         color: root.contentForeground
         font.family: root.contentFontFamily
-        font.pixelSize: Style.font.title
+        font.pixelSize: Style.font.bodyLarge
         font.bold: true
         wrapMode: Text.WordWrap
+        maximumLineCount: 2
+        elide: Text.ElideRight
       }
 
       Text {

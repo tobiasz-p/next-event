@@ -158,6 +158,23 @@ describe("DisplayFormatter", () => {
     })
   })
 
+  describe("daySectionTitle()", () => {
+    it("formats today, tomorrow, and future days with day and date", () => {
+      assert.strictEqual(
+        DisplayFormatter.daySectionTitle(new Date(2026, 7, 28, 12, 0, 0), now),
+        "TODAY · FRI 28 AUG"
+      )
+      assert.strictEqual(
+        DisplayFormatter.daySectionTitle(new Date(2026, 7, 29, 12, 0, 0), now),
+        "TOMORROW · SAT 29 AUG"
+      )
+      assert.strictEqual(
+        DisplayFormatter.daySectionTitle(new Date(2026, 7, 30, 12, 0, 0), now),
+        "SUN 30 AUG"
+      )
+    })
+  })
+
   describe("heroTimeStatus()", () => {
     it("formats meeting time and relative countdown status", () => {
       assert.strictEqual(

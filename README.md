@@ -143,7 +143,7 @@ Configure settings with `omarchy bar set tobiasz-p.next-event <key> <value>`:
 | `maxTitleLength`      | `28`    | Bar label truncation length                         |
 | `maxFeedSizeMiB`      | `10`    | Maximum size of each downloaded calendar feed (MiB) |
 | `showOnlyWithVideoLink` | `false` | Only show meetings in the bar countdown that have a video link |
-| `showCalendarLabel`   | `true`  | Show calendar name badge above events in the agenda panel and in the tooltip |
+| `showCalendarLabel`   | `true`  | Include calendar name in the bar widget tooltip      |
 | `useCalendarColors`   | `true`  | Tint event indicators and badges in the panel using calendar-specific colors |
 | `colorOnBar`          | `false` | Also tint the bar widget text using the next meeting's calendar color (requires `useCalendarColors` to be `true`) |
 | `browserCommand`      | `""`    | Command used to open the Meet URL (`xdg-open` by default) |

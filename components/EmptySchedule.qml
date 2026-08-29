@@ -21,7 +21,7 @@ Item {
     Text {
       anchors.horizontalCenter: parent.horizontalCenter
       text: Model.ICON_CALENDAR_EMPTY
-      color: Qt.darker(root.contentForeground, 1.6)
+      color: Qt.darker(root.contentForeground, Tokens.dimGhost)
       font.family: root.contentFontFamily
       font.pixelSize: Style.font.display
     }
@@ -29,7 +29,7 @@ Item {
     Text {
       anchors.horizontalCenter: parent.horizontalCenter
       text: Model.LABEL_NO_MEETINGS
-      color: Qt.darker(root.contentForeground, 1.3)
+      color: Qt.darker(root.contentForeground, Tokens.dimLabel)
       font.family: root.contentFontFamily
       font.pixelSize: Style.font.body
       font.bold: true
@@ -38,7 +38,7 @@ Item {
     Text {
       anchors.horizontalCenter: parent.horizontalCenter
       text: Model.LABEL_SCHEDULE_CLEAR
-      color: Qt.darker(root.contentForeground, 1.6)
+      color: Qt.darker(root.contentForeground, Tokens.dimGhost)
       font.family: root.contentFontFamily
       font.pixelSize: Style.font.caption
     }

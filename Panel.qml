@@ -286,7 +286,7 @@ Panel {
           PanelSeparator {
             visible: root.useCalendarColors && root.calendarLegend && root.calendarLegend.length > 1
             foreground: root.contentForeground
-            strength: 0.07
+            strength: Tokens.separatorLegend
           }
 
           CalendarLegend {

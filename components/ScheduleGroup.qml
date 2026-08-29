@@ -34,7 +34,7 @@ Item {
     PanelSeparator {
       visible: root.showSeparator
       foreground: root.contentForeground
-      strength: 0.1
+      strength: Tokens.separatorGroup
     }
 
     PanelSectionHeader {

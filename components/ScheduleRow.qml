@@ -42,14 +42,14 @@ CursorSurface {
       id: indicatorContainer
       visible: root.useCalendarColors && !!(root.meeting && root.meeting.calendarColor)
       Layout.alignment: Qt.AlignVCenter
-      implicitWidth: Style.space(6)
-      implicitHeight: Style.space(16)
+      implicitWidth: Style.space(Tokens.dotSize)
+      implicitHeight: Style.space(Tokens.barHeight)
 
       Rectangle {
         id: colorDot
         anchors.centerIn: parent
-        width: (root.meeting && root.meeting.allDay) ? Style.space(6) : Style.space(2.5)
-        height: (root.meeting && root.meeting.allDay) ? Style.space(6) : Style.space(16)
+        width: (root.meeting && root.meeting.allDay) ? Style.space(Tokens.dotSize) : Style.space(Tokens.barWidth)
+        height: (root.meeting && root.meeting.allDay) ? Style.space(Tokens.dotSize) : Style.space(Tokens.barHeight)
         radius: width * 0.5
         color: (root.meeting && root.meeting.calendarColor) ? root.meeting.calendarColor : "transparent"
       }
@@ -58,9 +58,9 @@ CursorSurface {
     Text {
       id: timeLabel
       Layout.alignment: Qt.AlignVCenter
-      Layout.preferredWidth: Style.space(44)
+      Layout.preferredWidth: Style.space(Tokens.colTime)
       text: root.meeting ? (root.meeting.allDay ? Model.LABEL_ALL_DAY.toUpperCase() : Model.hm(root.meeting.start)) : ""
-      color: Qt.darker(root.contentForeground, 1.3)
+      color: Qt.darker(root.contentForeground, Tokens.dimLabel)
       font.family: root.contentFontFamily
       font.pixelSize: Style.font.bodySmall
       font.bold: true
@@ -79,20 +79,20 @@ CursorSurface {
 
     Text {
       Layout.alignment: Qt.AlignVCenter
-      Layout.preferredWidth: Style.space(34)
+      Layout.preferredWidth: Style.space(Tokens.colDuration)
       horizontalAlignment: Text.AlignRight
       text: root.meeting ? (root.meeting.allDay ? "" : Model.formatDuration(root.meeting.start, root.meeting.end)) : ""
-      color: Qt.darker(root.contentForeground, 1.6)
+      color: Qt.darker(root.contentForeground, Tokens.dimGhost)
       font.family: root.contentFontFamily
       font.pixelSize: Style.font.caption
     }
 
     Text {
       Layout.alignment: Qt.AlignVCenter
-      Layout.preferredWidth: Style.space(16)
+      Layout.preferredWidth: Style.space(Tokens.colIcon)
       horizontalAlignment: Text.AlignRight
       text: (root.meeting && root.meeting.meetUrl) ? Model.ICON_MEETING_VIDEO : Model.ICON_CALENDAR_EVENT
-      color: (root.meeting && root.meeting.meetUrl) ? Color.accent : Qt.darker(root.contentForeground, 1.5)
+      color: (root.meeting && root.meeting.meetUrl) ? Color.accent : Qt.darker(root.contentForeground, Tokens.dimMuted)
       font.family: root.contentFontFamily
       font.pixelSize: Style.font.bodySmall
     }

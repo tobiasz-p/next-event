@@ -28,7 +28,7 @@ Column {
   Text {
     width: parent.width
     text: root.description
-    color: Qt.darker(root.contentForeground, 1.35)
+    color: Qt.darker(root.contentForeground, Tokens.dimMeta)
     font.family: root.contentFontFamily
     font.pixelSize: Style.font.caption
     wrapMode: Text.WordWrap

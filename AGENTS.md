@@ -6,7 +6,7 @@ lets you click to join Google Meet. NOT a Node app — the runtime is QML.
 ## Architecture
 
 - `manifest.json` is the plugin descriptor; `entryPoints.barWidget` = `BarWidget.qml`. `kinds: ["bar-widget"]`.
-- QML layer: `BarWidget.qml` (bar widget) and `Panel.qml` (agenda popup), decomposed into modular QML components under `components/` (`HeaderBar.qml`, `HeroCard.qml`, `ScheduleGroup.qml`, `ScheduleRow.qml`, `CalendarLegend.qml`, `SetupGuide.qml`, `SetupCard.qml`, `EmptySchedule.qml`). These own all Qt/Quickshell UI, fetching (Quickshell.Io), and widget settings.
+- QML layer: `BarWidget.qml` (bar widget) and `Panel.qml` (agenda popup), decomposed into modular QML components under `components/` (`Tokens.qml`, `HeaderBar.qml`, `HeroCard.qml`, `ScheduleGroup.qml`, `ScheduleRow.qml`, `CalendarLegend.qml`, `SetupGuide.qml`, `SetupCard.qml`, `EmptySchedule.qml`). These own all Qt/Quickshell UI, fetching (Quickshell.Io), and widget settings.
 - `Model.js` is the pure-JS core and single source of truth: iCalendar parsing, RRULE/DTSTART recurrence expansion, VTIMEZONE/DST handling, display labels, domain classes (`CalendarEvent`, `TimezoneResolver`, `RecurrenceRule`, `RecurrenceExpander`, `MeetingLinkDetector`, `IcsParser`, `JsonStateParser`, `FeedConfigParser`, `ScheduleAggregator`, `DisplayFormatter`, `PanelNavigationModel`), and navigation. No Qt/Quickshell imports.
 - `Model.js` is imported two ways: QML does `import "Model.js" as Model`; Node does `require("./Model.js")` for tests. Keep every constant and helper function top-level (QML exposes them directly) and keep the `module.exports` guard at the bottom — the guard is what makes it require-able in Node.
 

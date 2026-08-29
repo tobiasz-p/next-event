@@ -10,25 +10,51 @@
 Next event, right in the bar — native to your Omarchy shell. Shows the next
 upcoming event from your calendar with live countdowns and lets you join video calls (Google Meet, Zoom, Teams, Webex, GoToMeeting) with a single click.
 
+## Contents
+
+- [Screenshots](#screenshots)
+- [Features](#features)
+- [Install](#install)
+- [Remove](#remove)
+- [Setup & Calendar Connection](#setup--calendar-connection)
+  - [Option 1: Google Workspace OAuth](#option-1-google-workspace-oauth-recommended-for-work-accounts)
+  - [Option 2: Private iCal Feed URL](#option-2-private-ical-ics-feed-urls-personal-accounts)
+- [Available Settings](#available-settings)
+- [Opening the Panel from the Keyboard](#opening-the-panel-from-the-keyboard)
+  - [Panel Keyboard Shortcuts](#panel-keyboard-shortcuts)
+- [Privacy](#privacy)
+- [Contributing](#contributing)
+- [License](#license)
+
 <p align="center">
-  <img src="preview.png" alt="NextEvent Overview" width="560">
+  <img src="preview.png" alt="NextEvent Overview" width="400">
   <br>
-  <em>Active meeting with live countdown in bar, hero card with Google Meet action, and multi-day agenda (shown in Matte Black theme)</em>
+  <em>Active meeting with live countdown in the bar, hero card with Join Meeting action, per-feed color indicators, and multi-day grouped agenda</em>
 </p>
 
 ## Screenshots
 
-| Pre-Meeting / Upcoming | Setup & Onboarding Guide |
-| :---: | :---: |
-| <img src="assets/upcoming.png" alt="Upcoming Meeting" width="380"><br><sub><b>Pre-meeting state</b> with <code>NEXT</code> badge & countdown</sub> | <img src="assets/onboarding.png" alt="Setup Guide" width="380"><br><sub><b>Onboarding guide</b> with OAuth & iCal options</sub> |
+**Agenda**
 
-| Empty Schedule State | Full Multi-Day Agenda |
-| :---: | :---: |
-| <img src="assets/empty.png" alt="Empty Schedule" width="380"><br><sub><b>Zero-state</b> when your schedule is clear</sub> | <img src="assets/schedule.png" alt="Full Schedule" width="380"><br><sub><b>Grouped agenda</b> across today, tomorrow, and future days</sub> |
+<table align="center"><tr>
+  <td align="center"><img src="preview.png" width="280" alt="Full agenda"><br><sub><b>Full agenda</b> — hero card, Join Meeting, per-feed color bars, all-day dots, section headers with dates, calendar legend</sub></td>
+  <td align="center"><img src="assets/schedule-12h-tint.png" width="280" alt="12h clock and bar tint"><br><sub><b>12h AM/PM format</b> with bar text tinted in the active calendar's color</sub></td>
+</tr></table>
 
-| Multi-Provider Video Links | Multiple Calendars |
-| :---: | :---: |
-| <img src="assets/multi-provider.png" alt="Multi-Provider Video Links" width="380"><br><sub><b>Zoom, Teams, Webex, GoToMeeting</b> all get the video glyph and Join Meeting button</sub> | <img src="assets/multi-ics.png" alt="Multiple Calendars" width="380"><br><sub>Work + Personal feeds with label tags and a deduplicated shared event</sub> |
+**Settings**
+
+<table align="center"><tr>
+  <td align="center"><img src="assets/settings-ics.png" width="280" alt="ICS Feed Settings"><br><sub><b>iCal Feeds</b> — add/remove feeds, labels, 2D color spectrum picker, lookahead &amp; refresh</sub></td>
+  <td align="center"><img src="assets/settings-display.png" width="280" alt="Display Settings"><br><sub><b>Display &amp; shortcuts</b> — video filter, colors, bar tint, 12h format, calendar URL, browser command, panel keybindings</sub></td>
+</tr></table>
+
+**States & Onboarding**
+
+<table align="center"><tr>
+  <td align="center"><img src="assets/empty.png" width="360" alt="Empty Schedule"><br><sub><b>Empty state</b> — schedule clear, legend shows configured feeds</sub></td>
+  <td align="center"><img src="assets/onboarding.png" width="260" alt="Onboarding"><br><sub><b>First-run onboarding</b> — OAuth or iCal URL</sub></td>
+  <td align="center"><img src="assets/settings-oauth.png" width="260" alt="Google OAuth Settings"><br><sub><b>Google OAuth source</b> — local JSON state file path</sub></td>
+</tr></table>
 
 ## Features
 

@@ -49,4 +49,30 @@ Tests cover domain JS only; the QML layer has no automated coverage.
   `git tag -a X.Y.Z -m "X.Y.Z" && git push origin main X.Y.Z`
 - Create the GitHub release with notes covering changes since the previous tag:
   `gh release create X.Y.Z --title "X.Y.Z" --notes "..."`
-- Ask for marketplace verification with a `[Verify]` issue on HANCORE-linux/omarchy-plugin-marketplace (verify-plugin.yml template): action "Verify and publish a newer upstream commit", plugin ID `tobiasz-p.next-event`, repo URL, and the full 40-char SHA of the release commit. A bot validates, runs a security baseline, then a maintainer applies `approved-and-verified` and publishes that exact snapshot.
+- Ask for marketplace verification with a `[Verify]` issue on HANCORE-linux/omarchy-plugin-marketplace (verify-plugin.yml template): action "Verify and publish a newer upstream commit", plugin ID `tobiasz-p.next-event`, repo URL `https://github.com/tobiasz-p/next-event`, and the full 40-char SHA of the release commit. A bot validates, runs a security baseline, then a maintainer applies `approved-and-verified` and publishes that exact snapshot.
+  Create the issue with:
+  ```
+  gh issue create --repo HANCORE-linux/omarchy-plugin-marketplace --title "[Verify] tobiasz-p.next-event X.Y.Z" --body "### Verification action
+
+  Verify and publish a newer upstream commit
+
+  ### Plugin ID
+
+  tobiasz-p.next-event
+
+  ### Repository URL
+
+  https://github.com/tobiasz-p/next-event
+
+  ### Target commit
+
+  <full-40-char-sha>
+
+  ### Verification acknowledgment
+
+  - [x] I understand that only the exact target commit can become a verified marketplace snapshot and that verification is not a security audit.
+
+  ### Standard installation acknowledgment
+
+  - [x] I confirm that this listed root plugin supports the standard Omarchy installation path and does not require manual setup."
+  ```

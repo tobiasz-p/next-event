@@ -60,9 +60,11 @@ describe("FeedConfigParser", () => {
   })
 
   describe("normalizeKey()", () => {
-    it("accepts valid alphanumeric characters and falls back on invalid values", () => {
+    it("accepts valid alphanumeric characters and punctuation and falls back on invalid values", () => {
       assert.strictEqual(FeedConfigParser.normalizeKey("r", "x"), "r")
       assert.strictEqual(FeedConfigParser.normalizeKey("R", "x"), "r")
+      assert.strictEqual(FeedConfigParser.normalizeKey(",", "x"), ",")
+      assert.strictEqual(FeedConfigParser.normalizeKey(";", "x"), ";")
       assert.strictEqual(FeedConfigParser.normalizeKey("Ctrl+R", "r"), "r")
       assert.strictEqual(FeedConfigParser.normalizeKey("", "r"), "r")
     })

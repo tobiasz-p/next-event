@@ -21,7 +21,7 @@ BarWidget {
   // (comma-separated), or a JSON array of strings / { url, label } objects.
   readonly property var icsFeeds: Model.splitIcsFeeds(setting("icsUrl", ""))
   readonly property string eventsJsonPath: String(setting("eventsJsonPath", (Quickshell.env("HOME") || "") + "/.local/state/omarchy/calendar-events.json") || "").trim()
-  readonly property string sourceMode: icsFeeds.length > 0 ? Model.SOURCE_MODE_ICS : Model.SOURCE_MODE_JSON
+  readonly property string sourceMode: String(setting("sourceMode", icsFeeds.length > 0 ? Model.SOURCE_MODE_ICS : Model.SOURCE_MODE_JSON) || "").trim()
   readonly property int refreshMinutes: Math.max(1, parseInt(setting("refreshMinutes", Model.DEFAULT_REFRESH_MINUTES), 10) || Model.DEFAULT_REFRESH_MINUTES)
   readonly property int showDaysAhead: Math.max(1, parseInt(setting("showDaysAhead", Model.DEFAULT_LOOKAHEAD_DAYS), 10) || Model.DEFAULT_LOOKAHEAD_DAYS)
   readonly property int maxTitleLength: Math.max(Model.MIN_MAX_TITLE_LENGTH, parseInt(setting("maxTitleLength", Model.DEFAULT_MAX_TITLE_LENGTH), 10) || Model.DEFAULT_MAX_TITLE_LENGTH)
@@ -39,6 +39,7 @@ BarWidget {
   // Arrows and j/k/h/l are reserved by the shell's key catcher for
   // navigation, so those letters would be dead config here.
   readonly property string keyRefresh: Model.normalizeKey(setting("keyRefresh", Model.DEFAULT_KEY_REFRESH), Model.DEFAULT_KEY_REFRESH)
+  readonly property string keySettings: Model.normalizeKey(setting("keySettings", Model.DEFAULT_KEY_SETTINGS), Model.DEFAULT_KEY_SETTINGS)
   readonly property string keyJoin: Model.normalizeKey(setting("keyJoin", Model.DEFAULT_KEY_JOIN), Model.DEFAULT_KEY_JOIN)
   readonly property string keyCalendar: Model.normalizeKey(setting("keyCalendar", Model.DEFAULT_KEY_CALENDAR), Model.DEFAULT_KEY_CALENDAR)
 
@@ -49,8 +50,11 @@ BarWidget {
 
   // ---- state
   property bool jsonLoaded: false
-  readonly property bool configured: (icsFeeds.length > 0) || jsonLoaded || (rawEvents && rawEvents.length > 0)
-  onSourceModeChanged: { jsonLoaded = false }
+  readonly property bool configured: (sourceMode === Model.SOURCE_MODE_ICS ? icsFeeds.length > 0 : jsonLoaded) || (rawEvents && rawEvents.length > 0)
+  onSourceModeChanged: {
+    jsonLoaded = false
+    fetchCalendar()
+  }
   property var rawEvents: []
   property var meetings: []
   property var upcomingToday: []

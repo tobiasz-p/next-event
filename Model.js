@@ -31,6 +31,7 @@ var TRANSITION_YEAR_MARGIN = 1
 var DEFAULT_KEY_REFRESH = "r"
 var DEFAULT_KEY_JOIN = "m"
 var DEFAULT_KEY_CALENDAR = "o"
+var DEFAULT_KEY_SETTINGS = ","
 
 var SOURCE_MODE_ICS = "ics"
 var SOURCE_MODE_JSON = "json"
@@ -46,6 +47,7 @@ var DEFAULT_CALENDAR_URL_BASE = "https://calendar.google.com/calendar"
 var RESPONSE_STATUS_DECLINED = "declined"
 
 var SECTION_EVENTS = "EVENTS"
+var SECTION_SETTINGS = "SETTINGS"
 var SECTION_TODAY = "TODAY"
 var SECTION_TOMORROW = "TOMORROW"
 var SECTION_NEXT = "NEXT"
@@ -56,9 +58,12 @@ var STATUS_OFFLINE_CACHED = "offline · cached"
 var STATUS_OFFLINE = "offline"
 
 var TOOLTIP_REFRESH = "Refresh calendar"
+var TOOLTIP_SETTINGS = "Settings (,)"
+var TOOLTIP_BACK_SCHEDULE = "Back to schedule"
 var TOOLTIP_UPDATING = "Updating calendar…"
 
 var ICON_REFRESH = ""
+var ICON_SETTINGS = "󰒓"
 var ICON_MEETING_VIDEO = ""
 var ICON_CALENDAR_EVENT = "󰃯"
 var ICON_CALENDAR_EMPTY = "󰃲"
@@ -85,6 +90,7 @@ var LABEL_VIDEO_DEFAULT = "Video"
 var LABEL_EVENT_FALLBACK = "Event"
 
 var ACTION_REFRESH = "refresh"
+var ACTION_SETTINGS = "settings"
 var ACTION_JOIN = "join"
 var ACTION_CALENDAR = "calendar"
 var ACTION_EVENT = "event"
@@ -152,6 +158,7 @@ var Constants = {
   MAX_RRULE_STEPS: MAX_RRULE_STEPS,
   TRANSITION_YEAR_MARGIN: TRANSITION_YEAR_MARGIN,
   DEFAULT_KEY_REFRESH: DEFAULT_KEY_REFRESH,
+  DEFAULT_KEY_SETTINGS: DEFAULT_KEY_SETTINGS,
   DEFAULT_KEY_JOIN: DEFAULT_KEY_JOIN,
   DEFAULT_KEY_CALENDAR: DEFAULT_KEY_CALENDAR,
   SOURCE_MODE_ICS: SOURCE_MODE_ICS,
@@ -166,6 +173,7 @@ var Constants = {
   DEFAULT_CALENDAR_URL_BASE: DEFAULT_CALENDAR_URL_BASE,
   RESPONSE_STATUS_DECLINED: RESPONSE_STATUS_DECLINED,
   SECTION_EVENTS: SECTION_EVENTS,
+  SECTION_SETTINGS: SECTION_SETTINGS,
   SECTION_TODAY: SECTION_TODAY,
   SECTION_TOMORROW: SECTION_TOMORROW,
   SECTION_NEXT: SECTION_NEXT,
@@ -174,8 +182,11 @@ var Constants = {
   STATUS_OFFLINE_CACHED: STATUS_OFFLINE_CACHED,
   STATUS_OFFLINE: STATUS_OFFLINE,
   TOOLTIP_REFRESH: TOOLTIP_REFRESH,
+  TOOLTIP_SETTINGS: TOOLTIP_SETTINGS,
+  TOOLTIP_BACK_SCHEDULE: TOOLTIP_BACK_SCHEDULE,
   TOOLTIP_UPDATING: TOOLTIP_UPDATING,
   ICON_REFRESH: ICON_REFRESH,
+  ICON_SETTINGS: ICON_SETTINGS,
   ICON_MEETING_VIDEO: ICON_MEETING_VIDEO,
   ICON_CALENDAR_EVENT: ICON_CALENDAR_EVENT,
   ICON_CALENDAR_EMPTY: ICON_CALENDAR_EMPTY,
@@ -196,6 +207,7 @@ var Constants = {
   LABEL_VIDEO_DEFAULT: LABEL_VIDEO_DEFAULT,
   LABEL_EVENT_FALLBACK: LABEL_EVENT_FALLBACK,
   ACTION_REFRESH: ACTION_REFRESH,
+  ACTION_SETTINGS: ACTION_SETTINGS,
   ACTION_JOIN: ACTION_JOIN,
   ACTION_CALENDAR: ACTION_CALENDAR,
   ACTION_EVENT: ACTION_EVENT,
@@ -1408,7 +1420,7 @@ class FeedConfigParser {
     var keyStr = String(value == null ? "" : value)
       .trim()
       .toLowerCase()
-    return /^[a-z0-9]$/.test(keyStr) ? keyStr : fallback
+    return /^[a-z0-9,;.:_/-]$/.test(keyStr) ? keyStr : fallback
   }
 
   static toBoolean(value, fallback) {
@@ -1940,8 +1952,14 @@ class PanelNavigationModel {
     this.cursorActive = false
   }
 
-  rebuildActionItems(heroVisible, nextMeeting, scheduleGroups) {
-    var items = [{ kind: ACTION_REFRESH }]
+  rebuildActionItems(heroVisible, nextMeeting, scheduleGroups, inSettingsView) {
+    if (inSettingsView) {
+      this.actionItems = [{ kind: ACTION_SETTINGS }]
+      if (this.cursorIndex >= this.actionItems.length)
+        this.cursorIndex = this.actionItems.length - 1
+      return this.actionItems
+    }
+    var items = [{ kind: ACTION_REFRESH }, { kind: ACTION_SETTINGS }]
     if (heroVisible && nextMeeting && nextMeeting.meetUrl) items.push({ kind: ACTION_JOIN })
     if (heroVisible && nextMeeting) items.push({ kind: ACTION_CALENDAR })
     if (scheduleGroups && scheduleGroups.length) {

@@ -16,6 +16,7 @@ lets you click to join Google Meet. NOT a Node app — the runtime is QML.
 - QML's V4 engine has **no `Intl`**. Model.js must work without it. Timezone resolution order is: VTIMEZONE table → `Intl` if the engine has it → naive local fallback. Do not add `Intl`-dependent logic to Model.js without a fallback (there is a dedicated test simulating the no-Intl engine).
 - TZID table is reset at the start of every `parseIcs`/`registerVTimezones`. A feed that drops a zone must not resolve against stale data — this is a tested invariant; don't make the table accumulate across parses.
 - Keep `Model.js` dependency-free (pure). The QML sandbox cannot load npm packages; runtime deps are not possible.
+- **PlainText text format on all QML `Text` items**: Qt Quick `Text` items default to `Text.AutoText`, which evaluates strings containing HTML tags as rich text and can load remote images / tracking pixels inside the shell process. Always explicitly specify `textFormat: Text.PlainText` on all `Text` items rendering feed-derived content (event titles, locations, descriptions, calendar labels) and UI text.
 
 ## Tests & Tooling
 

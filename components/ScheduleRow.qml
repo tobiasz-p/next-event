@@ -60,6 +60,7 @@ CursorSurface {
       id: timeLabel
       Layout.alignment: Qt.AlignVCenter
       Layout.preferredWidth: Style.space(root.use12Hour ? Tokens.colTime12Hour : Tokens.colTime)
+      textFormat: Text.PlainText
       text: root.meeting ? (root.meeting.allDay ? Model.LABEL_ALL_DAY.toUpperCase() : Model.hm(root.meeting.start, root.use12Hour)) : ""
       color: Qt.darker(root.contentForeground, Tokens.dimLabel)
       font.family: root.contentFontFamily
@@ -70,6 +71,7 @@ CursorSurface {
     Text {
       Layout.fillWidth: true
       Layout.alignment: Qt.AlignVCenter
+      textFormat: Text.PlainText
       text: root.meeting ? (root.meeting.title || "(Untitled)") : ""
       color: root.contentForeground
       font.family: root.contentFontFamily
@@ -82,6 +84,7 @@ CursorSurface {
       Layout.alignment: Qt.AlignVCenter
       Layout.preferredWidth: Style.space(Tokens.colDuration)
       horizontalAlignment: Text.AlignRight
+      textFormat: Text.PlainText
       text: root.meeting ? (root.meeting.allDay ? "" : Model.formatDuration(root.meeting.start, root.meeting.end)) : ""
       color: Qt.darker(root.contentForeground, Tokens.dimGhost)
       font.family: root.contentFontFamily
@@ -92,6 +95,7 @@ CursorSurface {
       Layout.alignment: Qt.AlignVCenter
       Layout.preferredWidth: Style.space(Tokens.colIcon)
       horizontalAlignment: Text.AlignRight
+      textFormat: Text.PlainText
       text: (root.meeting && root.meeting.meetUrl) ? Model.ICON_MEETING_VIDEO : Model.ICON_CALENDAR_EVENT
       color: (root.meeting && root.meeting.meetUrl) ? Color.accent : Qt.darker(root.contentForeground, Tokens.dimMuted)
       font.family: root.contentFontFamily

@@ -66,6 +66,7 @@ Item {
         width: parent.width
 
         Text {
+          textFormat: Text.PlainText
           text: root.inMeeting ? Model.SECTION_HAPPENING_NOW : Model.SECTION_NEXT
           color: root.inMeeting ? Color.accent : Qt.darker(root.contentForeground, Tokens.dimMuted)
           font.family: root.contentFontFamily
@@ -78,6 +79,7 @@ Item {
 
         Text {
           visible: !!root.next
+          textFormat: Text.PlainText
           text: Model.heroHeaderMeta(root.next)
           color: root.inMeeting ? Color.accent : Qt.darker(root.contentForeground, Tokens.dimCaption)
           font.family: root.contentFontFamily
@@ -88,6 +90,7 @@ Item {
 
       Text {
         width: parent.width
+        textFormat: Text.PlainText
         text: root.next ? (root.next.title || "(Untitled)") : ""
         color: root.contentForeground
         font.family: root.contentFontFamily
@@ -100,6 +103,7 @@ Item {
 
       Text {
         width: parent.width
+        textFormat: Text.PlainText
         text: Model.heroTimeStatus(root.next, root.now, root.use12Hour)
         color: Qt.darker(root.contentForeground, Tokens.dimMeta)
         font.family: root.contentFontFamily

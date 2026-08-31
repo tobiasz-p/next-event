@@ -152,6 +152,7 @@ Item {
             id: feedSubHeader
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
             text: "CONFIGURED FEEDS"
             color: Qt.darker(root.contentForeground, Tokens.dimMuted)
             font.family: root.contentFontFamily
@@ -180,6 +181,7 @@ Item {
         Text {
           visible: root.feedsList.length === 0
           width: parent.width
+          textFormat: Text.PlainText
           text: "No ICS feeds added yet. Click \"+ Add Feed\" to add calendar URLs (Google Calendar, Outlook, iCloud, Proton, Nextcloud)."
           color: Qt.darker(root.contentForeground, Tokens.dimMeta)
           font.family: root.contentFontFamily

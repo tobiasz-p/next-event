@@ -22,6 +22,7 @@ Column {
 
   Text {
     visible: root.label !== ""
+    textFormat: Text.PlainText
     text: root.label
     color: root.contentForeground
     font.family: root.contentFontFamily
@@ -32,6 +33,7 @@ Column {
   Text {
     visible: root.description !== ""
     width: parent.width
+    textFormat: Text.PlainText
     text: root.description
     color: Qt.darker(root.contentForeground, Tokens.dimMeta)
     font.family: root.contentFontFamily

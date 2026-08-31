@@ -24,6 +24,7 @@ Item {
 
       Text {
         width: parent.width
+        textFormat: Text.PlainText
         text: Model.LABEL_SETUP_CONNECT_TITLE
         color: root.contentForeground
         font.family: root.contentFontFamily
@@ -34,6 +35,7 @@ Item {
 
       Text {
         width: parent.width
+        textFormat: Text.PlainText
         text: Model.LABEL_SETUP_CONNECT_SUBTITLE
         color: Qt.darker(root.contentForeground, Tokens.dimMeta)
         font.family: root.contentFontFamily

@@ -17,6 +17,7 @@ Column {
 
   Text {
     width: parent.width
+    textFormat: Text.PlainText
     text: root.title
     color: root.titleColor
     font.family: root.contentFontFamily
@@ -27,6 +28,7 @@ Column {
 
   Text {
     width: parent.width
+    textFormat: Text.PlainText
     text: root.description
     color: Qt.darker(root.contentForeground, Tokens.dimMeta)
     font.family: root.contentFontFamily
@@ -50,6 +52,7 @@ Column {
 
       Text {
         width: parent.width
+        textFormat: Text.PlainText
         text: root.command
         font.family: "monospace"
         font.pixelSize: Style.font.caption

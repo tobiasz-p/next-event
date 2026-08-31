@@ -59,6 +59,7 @@ BorderSurface {
           id: feedCardTitle
           Layout.fillWidth: true
           Layout.alignment: Qt.AlignVCenter
+          textFormat: Text.PlainText
           text: "Feed " + (root.feedIndex + 1) + (root.feedLabel ? (" · " + root.feedLabel) : "")
           color: root.contentForeground
           font.family: root.contentFontFamily

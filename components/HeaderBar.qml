@@ -31,6 +31,7 @@ Item {
     id: headingLabel
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
+    textFormat: Text.PlainText
     text: root.inSettingsView ? Model.SECTION_SETTINGS : Model.SECTION_EVENTS
     color: Qt.darker(root.contentForeground, Tokens.dimMuted)
     font.family: root.contentFontFamily
@@ -44,6 +45,7 @@ Item {
     anchors.right: buttonRow.left
     anchors.rightMargin: Style.space(8)
     anchors.verticalCenter: parent.verticalCenter
+    textFormat: Text.PlainText
     text: root.inSettingsView ? "" : root.statusText
     color: root.isError ? Color.urgent : Qt.darker(root.contentForeground, Tokens.dimMuted)
     font.family: root.contentFontFamily

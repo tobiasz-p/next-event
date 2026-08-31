@@ -46,6 +46,7 @@ Item {
 
         Text {
           id: legendText
+          textFormat: Text.PlainText
           text: modelData.name || ""
           color: Qt.darker(root.contentForeground, Tokens.dimMuted)
           font.family: root.contentFontFamily

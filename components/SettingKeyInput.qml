@@ -20,6 +20,7 @@ Column {
   spacing: Style.space(3)
 
   Text {
+    textFormat: Text.PlainText
     text: root.label
     color: root.contentForeground
     font.family: root.contentFontFamily

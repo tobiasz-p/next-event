@@ -182,6 +182,20 @@ describe("DisplayFormatter", () => {
       )
     })
 
+    it("formats tomorrow's all-day event with UTC date from iCal", () => {
+      const utcTomorrow = new CalendarEvent({
+        uid: "utc-tmrw",
+        title: "UTC Event",
+        start: new Date(Date.UTC(2026, 7, 29)),
+        end: new Date(Date.UTC(2026, 7, 30)),
+        allDay: true
+      })
+      assert.strictEqual(
+        DisplayFormatter.formatLabel(utcTomorrow, now, 30),
+        "UTC Event · Tmrw All day"
+      )
+    })
+
     it("truncates long titles exceeding maxTitleLength", () => {
       const longEvent = new CalendarEvent({
         title: "Very Long Team Meeting With Many Words",

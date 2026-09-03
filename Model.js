@@ -248,6 +248,7 @@ class DateTimeUtils {
   }
 
   static isSameDay(dateA, dateB) {
+    if (!dateA || !dateB) return false
     return (
       dateA.getFullYear() === dateB.getFullYear() &&
       dateA.getMonth() === dateB.getMonth() &&
@@ -309,6 +310,15 @@ class DateTimeUtils {
         utc: false,
         allDay: isDateOnly,
         tzid: tzid
+      }
+    }
+    // For date-only values (VALUE=DATE in iCal), treat as UTC date to handle
+    // timezone differences between calendar provider and local system
+    if (isDateOnly) {
+      return {
+        date: new Date(Date.UTC(year, month - 1, day)),
+        utc: true,
+        allDay: isDateOnly
       }
     }
     return {

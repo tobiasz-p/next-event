@@ -85,4 +85,58 @@ describe("JsonStateParser", () => {
       assert.deepStrictEqual(state, { events: [], syncedAt: null })
     })
   })
+
+  describe("serializeIcsCache()", () => {
+    it("round-trips events through serializeIcsCache / parseJsonState", () => {
+      const events = [
+        {
+          uid: "e1",
+          title: "Standup",
+          start: new Date("2026-08-28T10:00:00.000Z"),
+          end: new Date("2026-08-28T10:15:00.000Z"),
+          allDay: false,
+          meetUrl: "https://meet.google.com/abc-defg-hij",
+          feedLabel: "Work",
+          calendarColor: "#4285f4",
+          location: "Room A"
+        }
+      ]
+
+      const raw = JsonStateParser.serializeIcsCache(events, new Date("2026-08-28T09:00:00.000Z"))
+      const parsed = JsonStateParser.parseJsonState(raw)
+
+      assert.strictEqual(parsed.syncedAt, "2026-08-28T09:00:00.000Z")
+      assert.strictEqual(parsed.events.length, 1)
+      assert.strictEqual(parsed.events[0].uid, "e1")
+      assert.strictEqual(parsed.events[0].title, "Standup")
+      assert.strictEqual(parsed.events[0].calendarColor, "#4285f4")
+      assert.strictEqual(parsed.events[0].feedLabel, "Work")
+      assert.strictEqual(parsed.events[0].meetUrl, "https://meet.google.com/abc-defg-hij")
+      assert.strictEqual(parsed.events[0].start.toISOString(), "2026-08-28T10:00:00.000Z")
+      assert.strictEqual(parsed.events[0].end.toISOString(), "2026-08-28T10:15:00.000Z")
+    })
+
+    it("does not persist feed URLs in the cache payload", () => {
+      const raw = JsonStateParser.serializeIcsCache(
+        [
+          {
+            title: "Secret",
+            start: new Date("2026-08-28T10:00:00.000Z"),
+            url: "https://calendar.google.com/calendar/ical/private-secret/basic.ics"
+          }
+        ],
+        new Date("2026-08-28T09:00:00.000Z")
+      )
+
+      assert.strictEqual(raw.includes("private-secret"), false)
+      assert.strictEqual(raw.includes("basic.ics"), false)
+    })
+
+    it("serializes an empty event list with a syncedAt timestamp", () => {
+      const raw = JsonStateParser.serializeIcsCache(null, new Date("2026-08-28T09:00:00.000Z"))
+      const parsed = JSON.parse(raw)
+      assert.deepStrictEqual(parsed.events, [])
+      assert.strictEqual(parsed.syncedAt, "2026-08-28T09:00:00.000Z")
+    })
+  })
 })

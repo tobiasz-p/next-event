@@ -21,6 +21,7 @@ BarWidget {
   // (comma-separated), or a JSON array of strings / { url, label } objects.
   readonly property var icsFeeds: Model.splitIcsFeeds(setting("icsUrl", ""))
   readonly property string eventsJsonPath: String(setting("eventsJsonPath", (Quickshell.env("HOME") || "") + "/.local/state/omarchy/calendar-events.json") || "").trim()
+  readonly property string icsCachePath: (Quickshell.env("HOME") || "") + "/.local/state/omarchy/next-event-cache.json"
   readonly property string sourceMode: String(setting("sourceMode", icsFeeds.length > 0 ? Model.SOURCE_MODE_ICS : Model.SOURCE_MODE_JSON) || "").trim()
   readonly property int refreshMinutes: Math.max(1, parseInt(setting("refreshMinutes", Model.DEFAULT_REFRESH_MINUTES), 10) || Model.DEFAULT_REFRESH_MINUTES)
   readonly property int showDaysAhead: Math.max(1, parseInt(setting("showDaysAhead", Model.DEFAULT_LOOKAHEAD_DAYS), 10) || Model.DEFAULT_LOOKAHEAD_DAYS)
@@ -52,9 +53,11 @@ BarWidget {
 
   // ---- state
   property bool jsonLoaded: false
+  property bool icsLiveFetchSucceeded: false
   readonly property bool configured: (sourceMode === Model.SOURCE_MODE_ICS ? icsFeeds.length > 0 : jsonLoaded) || (rawEvents && rawEvents.length > 0)
   onSourceModeChanged: {
     jsonLoaded = false
+    icsLiveFetchSucceeded = false
     fetchCalendar()
   }
   property var rawEvents: []
@@ -210,15 +213,37 @@ BarWidget {
     var events = Model.dedupeEvents(allEvents)
 
     if (events.length === 0 && root.offlineFeedCount > 0 && root.feedChunks.length === 0) {
-      // Every feed failed: no data at all.
-      root.rawEvents = []
+      // Every feed failed: keep any cached snapshot on screen.
       root.lastFetchFailed = true
       root.meetingDataChanged()
       return
     }
 
     root.lastFetchFailed = false
+    root.icsLiveFetchSucceeded = true
     root.applyScheduleState(events, new Date())
+    root.writeIcsCache()
+  }
+
+  function onIcsCacheLoaded(raw) {
+    if (root.sourceMode !== Model.SOURCE_MODE_ICS) return
+    if (root.icsFeeds.length === 0) return
+    if (root.icsLiveFetchSucceeded) return
+    var text = String(raw || "").trim()
+    if (!text) return
+    var parsed = Model.parseJsonState(text, {
+      lookaheadDays: root.showDaysAhead + 1,
+      now: root.now
+    })
+    if (!parsed.events || parsed.events.length === 0) return
+    var cachedAt = parsed.syncedAt ? new Date(parsed.syncedAt) : null
+    if (cachedAt && isNaN(cachedAt.getTime())) cachedAt = null
+    root.applyScheduleState(parsed.events, cachedAt)
+  }
+
+  function writeIcsCache() {
+    if (root.sourceMode !== Model.SOURCE_MODE_ICS) return
+    icsCacheFile.setText(Model.serializeIcsCache(root.rawEvents, root.lastUpdated))
   }
 
   function onJsonData(raw) {
@@ -318,6 +343,15 @@ BarWidget {
       console.warn("NextEvent: eventsJson load failed: " + error + " path=" + root.eventsJsonPath)
     }
     onFileChanged: reload()
+  }
+
+  FileView {
+    id: icsCacheFile
+    path: root.sourceMode === Model.SOURCE_MODE_ICS ? root.icsCachePath : ""
+    watchChanges: false
+    atomicWrites: true
+    printErrors: false
+    onLoaded: root.onIcsCacheLoaded(text())
   }
 
   Process {

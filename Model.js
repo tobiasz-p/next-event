@@ -1434,6 +1434,43 @@ class JsonStateParser {
     var events = JsonStateParser.parseJsonEvents(jsonDocument, options)
     return { events: events, syncedAt: jsonDocument.syncedAt || null }
   }
+
+  static dateToIso(value) {
+    if (value == null || value === "") return null
+    if (typeof value === "string") return value
+    try {
+      if (typeof value.toISOString === "function") return value.toISOString()
+    } catch (_) {
+      return null
+    }
+    return null
+  }
+
+  static serializeIcsCache(events, syncedAt) {
+    var list = []
+    var source = events || []
+    for (var i = 0; i < source.length; i++) {
+      var event = source[i]
+      if (!event) continue
+      var start = JsonStateParser.dateToIso(event.start)
+      if (!start) continue
+      list.push({
+        uid: event.uid || null,
+        title: event.title || DEFAULT_EVENT_TITLE,
+        start: start,
+        end: JsonStateParser.dateToIso(event.end),
+        allDay: event.allDay === true,
+        meetUrl: event.meetUrl || null,
+        location: event.location || "",
+        calendarName: event.calendarName || "",
+        feedLabel: event.feedLabel || null,
+        calendarColor: event.calendarColor || null,
+        eventUrl: event.eventUrl || null
+      })
+    }
+    var synced = JsonStateParser.dateToIso(syncedAt) || JsonStateParser.dateToIso(new Date())
+    return JSON.stringify({ syncedAt: synced, events: list })
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -2225,6 +2262,9 @@ function parseJsonEvents(items, options) {
 function parseJsonState(rawText, options) {
   return JsonStateParser.parseJsonState(rawText, options)
 }
+function serializeIcsCache(events, syncedAt) {
+  return JsonStateParser.serializeIcsCache(events, syncedAt)
+}
 
 function splitIcsFeeds(raw) {
   return FeedConfigParser.splitIcsFeeds(raw)
@@ -2368,6 +2408,7 @@ if (typeof module !== "undefined" && module.exports) {
     parseIcs: parseIcs,
     parseJsonEvents: parseJsonEvents,
     parseJsonState: parseJsonState,
+    serializeIcsCache: serializeIcsCache,
     splitIcsFeeds: splitIcsFeeds,
     dedupeEvents: dedupeEvents,
     normalizeKey: normalizeKey,

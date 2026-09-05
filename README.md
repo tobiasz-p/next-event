@@ -67,6 +67,7 @@ upcoming event from your calendar with live countdowns and lets you join video c
 - **Summon Keybinding**: Bind a global key to open the agenda panel (see [Opening the panel from the keyboard](#opening-the-panel-from-the-keyboard))
 - **Repeating Events**: Automatically expands repeating events (daily standups, weekly meetings) and respects cancelled or rescheduled instances
 - **Live Updates**: Automatic background sync every few minutes, with a 30-second reactive countdown timer
+- **Instant start**: ICS events reappear immediately from a local cache while calendars refresh in the background
 
 ## Install
 
@@ -213,7 +214,7 @@ browser; refreshing keeps it open.
 
 ## Privacy
 
-Calendar data is fetched directly by your machine. No external intermediate service, no 3rd-party servers, no telemetry.
+Calendar data is fetched directly by your machine. No external intermediate service, no 3rd-party servers, no telemetry. ICS snapshots are cached locally at `~/.local/state/omarchy/next-event-cache.json` (event details only — feed URLs are never written).
 
 ## Contributing
 

@@ -150,7 +150,7 @@ BarWidget {
       return
     }
     fetchProc.stdinEnabled = true
-    fetchProc.command = ["curl", "-fsSL", "--max-time", String(Model.FETCH_TIMEOUT_SECONDS), "--max-filesize", String(root.maxFeedSizeMiB * Model.BYTES_PER_MIB), "-K", "-"]
+    fetchProc.command = ["curl", "-fsSL", "--compressed", "--max-time", String(Model.FETCH_TIMEOUT_SECONDS), "--max-filesize", String(root.maxFeedSizeMiB * Model.BYTES_PER_MIB), "-K", "-"]
     fetchProc.running = true
   }
 

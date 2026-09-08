@@ -129,5 +129,90 @@ describe("IcsParser", () => {
       assert.strictEqual(events2[0].calendarColor, "#4285f4")
       assert.strictEqual(events2[0].feedLabel, "Work")
     })
+
+    it("correctly includes rescheduled recurrence overrides (past instance moved forward)", () => {
+      // Recurring weekly on Mondays (Aug 10, Aug 17, Aug 24).
+      // Aug 10 was in the past relative to NOW (Aug 17 09:00Z).
+      // The Aug 10 instance was rescheduled to Aug 18 (tomorrow).
+      const ics = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "BEGIN:VEVENT",
+        "UID:recurring-sync",
+        "DTSTART:20260810T100000Z",
+        "DTEND:20260810T110000Z",
+        "RRULE:FREQ=WEEKLY;COUNT=3",
+        "SUMMARY:Weekly Sync",
+        "END:VEVENT",
+        "BEGIN:VEVENT",
+        "UID:recurring-sync",
+        "RECURRENCE-ID:20260810T100000Z",
+        "DTSTART:20260818T140000Z",
+        "DTEND:20260818T150000Z",
+        "SUMMARY:Weekly Sync Rescheduled",
+        "END:VEVENT",
+        "END:VCALENDAR"
+      ].join("\r\n")
+
+      const events = IcsParser.parse(ics, { now: NOW, lookaheadDays: 7 })
+      const rescheduled = events.find(e => e.title === "Weekly Sync Rescheduled")
+      assert.ok(rescheduled, "Rescheduled override from past instance should be included")
+      assert.strictEqual(rescheduled.start.toISOString(), "2026-08-18T14:00:00.000Z")
+    })
+
+    it("correctly includes rescheduled recurrence overrides (future instance moved earlier)", () => {
+      // Recurring bi-weekly. Future instance Aug 31 moved earlier to Aug 19.
+      const ics = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "BEGIN:VEVENT",
+        "UID:biweekly-board",
+        "DTSTART:20260817T100000Z",
+        "DTEND:20260817T110000Z",
+        "RRULE:FREQ=WEEKLY;INTERVAL=2;COUNT=3",
+        "SUMMARY:Board Meeting",
+        "END:VEVENT",
+        "BEGIN:VEVENT",
+        "UID:biweekly-board",
+        "RECURRENCE-ID:20260831T100000Z",
+        "DTSTART:20260819T100000Z",
+        "DTEND:20260819T110000Z",
+        "SUMMARY:Board Meeting Early",
+        "END:VEVENT",
+        "END:VCALENDAR"
+      ].join("\r\n")
+
+      // When lookaheadDays is only 3, Aug 31 is far beyond lookahead, but Aug 19 is within 3 days.
+      const events = IcsParser.parse(ics, { now: NOW, lookaheadDays: 3 })
+      const early = events.find(e => e.title === "Board Meeting Early")
+      assert.ok(early, "Future instance moved earlier into view range should be present")
+      assert.strictEqual(early.start.toISOString(), "2026-08-19T10:00:00.000Z")
+    })
+
+    it("suppresses master occurrence when overridden and ignores cancelled override", () => {
+      const ics = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "BEGIN:VEVENT",
+        "UID:standup-cancel",
+        "DTSTART:20260817T090000Z",
+        "DTEND:20260817T093000Z",
+        "RRULE:FREQ=DAILY;COUNT=3",
+        "SUMMARY:Standup",
+        "END:VEVENT",
+        "BEGIN:VEVENT",
+        "UID:standup-cancel",
+        "RECURRENCE-ID:20260818T090000Z",
+        "DTSTART:20260818T090000Z",
+        "STATUS:CANCELLED",
+        "SUMMARY:Standup",
+        "END:VEVENT",
+        "END:VCALENDAR"
+      ].join("\r\n")
+
+      const events = IcsParser.parse(ics, { now: NOW, lookaheadDays: 5 })
+      const aug18 = events.filter(e => e.start.toISOString() === "2026-08-18T09:00:00.000Z")
+      assert.strictEqual(aug18.length, 0, "Cancelled occurrence should not be present")
+    })
   })
 })

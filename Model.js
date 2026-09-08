@@ -357,6 +357,7 @@ class CalendarEvent {
     this.calendarColor = data.calendarColor || null
     this.eventUrl = data.eventUrl || null
     this.recurrenceId = data.recurrenceId
+    this.status = data.status || null
     this.rrule = data.rrule || null
     this.exdates = data.exdates || []
     this.durationMs = data.durationMs || 0
@@ -1137,6 +1138,7 @@ class IcsParser {
       var propValue = prop.value
       if (propName === "UID") event.uid = propValue.trim()
       else if (propName === "SUMMARY") event.title = IcsParser.unescapeIcs(propValue)
+      else if (propName === "STATUS") event.status = propValue.trim().toUpperCase()
       else if (propName === "RECURRENCE-ID") {
         var recurrenceParsed = DateTimeUtils.parseRfcDate(
           propValue,
@@ -1284,6 +1286,11 @@ class IcsParser {
       else masters.push(parsedEvents[i2])
     }
 
+    var mastersByUid = {}
+    for (var m = 0; m < masters.length; m++) {
+      mastersByUid[masters[m].uid] = masters[m]
+    }
+
     var overridesByUid = {}
     for (var i3 = 0; i3 < overrides.length; i3++) {
       var override = overrides[i3]
@@ -1295,6 +1302,8 @@ class IcsParser {
     var result = []
     for (var masterIndex = 0; masterIndex < masters.length; masterIndex++) {
       var master = masters[masterIndex]
+      if (master.status === "CANCELLED") continue
+
       var occurrenceStarts
       if (master.rrule) {
         occurrenceStarts = RecurrenceExpander.expandOccurrences(
@@ -1325,25 +1334,59 @@ class IcsParser {
         var occStart = occurrenceStarts[occIndex]
         var startMs = occStart.getTime()
         if (exdateSet[startMs]) continue
-        var overrideEvent = overridesByTime[startMs] || null
-        var source = overrideEvent || master
-        var startDate = overrideEvent ? overrideEvent.start : occStart
-        var endDate = overrideEvent ? overrideEvent.end : new Date(startMs + master.durationMs)
-        if (endDate.getTime() <= startDate.getTime())
-          endDate = new Date(startDate.getTime() + MS_PER_HOUR)
+        if (overridesByTime[startMs]) continue
+
+        var endDate = new Date(startMs + master.durationMs)
+        if (endDate.getTime() <= occStart.getTime())
+          endDate = new Date(occStart.getTime() + MS_PER_HOUR)
         result.push({
           uid: master.uid,
-          title: source.title,
-          start: startDate,
+          title: master.title,
+          start: occStart,
           end: endDate,
-          allDay: source.allDay === true,
-          meetUrl: source.meetUrl || null,
-          location: source.location || "",
-          description: source.description || "",
-          calendarColor: source.calendarColor || (options && options.calendarColor) || null,
+          allDay: master.allDay === true,
+          meetUrl: master.meetUrl || null,
+          location: master.location || "",
+          description: master.description || "",
+          calendarColor: master.calendarColor || (options && options.calendarColor) || null,
           feedLabel: (options && options.feedLabel) || null
         })
       }
+    }
+
+    var seenOverrides = {}
+    for (var ovIdx = 0; ovIdx < overrides.length; ovIdx++) {
+      var ov = overrides[ovIdx]
+      if (ov.status === "CANCELLED") continue
+      var ovKey =
+        (ov.uid || "") + "@" + (ov.recurrenceId || (ov.start ? ov.start.getTime() : ovIdx))
+      if (seenOverrides[ovKey]) continue
+      seenOverrides[ovKey] = true
+
+      var masterForOv = mastersByUid[ov.uid] || null
+      var ovEndDate = ov.end
+      if (!ovEndDate || ovEndDate.getTime() <= ov.start.getTime()) {
+        var duration = ov.durationMs || (masterForOv ? masterForOv.durationMs : MS_PER_HOUR)
+        ovEndDate = new Date(ov.start.getTime() + duration)
+      }
+      result.push({
+        uid: ov.uid,
+        title: ov.title || (masterForOv ? masterForOv.title : ""),
+        start: ov.start,
+        end: ovEndDate,
+        allDay:
+          ov.allDay === true ||
+          (ov.allDay === undefined && masterForOv ? masterForOv.allDay === true : false),
+        meetUrl: ov.meetUrl || (masterForOv ? masterForOv.meetUrl : null),
+        location: ov.location || (masterForOv ? masterForOv.location : ""),
+        description: ov.description || (masterForOv ? masterForOv.description : ""),
+        calendarColor:
+          ov.calendarColor ||
+          (masterForOv ? masterForOv.calendarColor : null) ||
+          (options && options.calendarColor) ||
+          null,
+        feedLabel: (options && options.feedLabel) || null
+      })
     }
     return result
   }
@@ -1381,6 +1424,7 @@ class JsonStateParser {
       var item = rawList[i]
       if (!item) continue
       if (item.responseStatus === RESPONSE_STATUS_DECLINED) continue
+      if (item.status === "cancelled") continue
 
       var startParsed = DateTimeUtils.parseIsoDate(item.start)
       if (!startParsed) continue
@@ -1728,7 +1772,10 @@ class ScheduleAggregator {
     var showOnlyWithVideoLink = options.showOnlyWithVideoLink === true
     var maxRows = Math.max(1, parseInt(options.maxRows, 10) || DEFAULT_MAX_ROWS)
     var nowMs = now.getTime()
-    var horizonMs = nowMs + lookaheadDays * MS_PER_DAY
+    var endOfHorizon = new Date(now)
+    endOfHorizon.setDate(endOfHorizon.getDate() + lookaheadDays)
+    endOfHorizon.setHours(23, 59, 59, 999)
+    var horizonMs = endOfHorizon.getTime()
 
     var upcoming = []
     for (var i = 0; i < (events || []).length; i++) {
@@ -1775,7 +1822,10 @@ class ScheduleAggregator {
     var lookaheadDays = Math.max(1, parseInt(options.lookaheadDays, 10) || DEFAULT_LOOKAHEAD_DAYS)
     var maxRows = Math.max(1, parseInt(options.maxRows, 10) || DEFAULT_MAX_ROWS)
     var nowMs = now.getTime()
-    var horizonMs = nowMs + lookaheadDays * MS_PER_DAY
+    var endOfHorizon = new Date(now)
+    endOfHorizon.setDate(endOfHorizon.getDate() + lookaheadDays)
+    endOfHorizon.setHours(23, 59, 59, 999)
+    var horizonMs = endOfHorizon.getTime()
 
     var validEvents = []
     for (var i = 0; i < (events || []).length; i++) {

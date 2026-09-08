@@ -93,6 +93,23 @@ describe("ScheduleAggregator", () => {
       assert.strictEqual(upcoming.length, 1)
       assert.strictEqual(upcoming[0].title, "Daily Standup")
     })
+
+    it("includes afternoon events on the N-th day ahead when now is morning", () => {
+      // now is 2026-08-28 09:00:00.
+      // 1 day ahead is 2026-08-29.
+      // An event at 15:00 on 2026-08-29 must be included with lookaheadDays: 1.
+      const afternoonTmrw = new CalendarEvent({
+        uid: "tmrw-afternoon",
+        title: "Late Afternoon Sync",
+        start: new Date(2026, 7, 29, 15, 0, 0),
+        end: new Date(2026, 7, 29, 16, 0, 0)
+      })
+      const upcoming = ScheduleAggregator.buildUpcoming([afternoonTmrw], now, {
+        lookaheadDays: 1
+      })
+      assert.strictEqual(upcoming.length, 1)
+      assert.strictEqual(upcoming[0].title, "Late Afternoon Sync")
+    })
   })
 
   describe("upcomingToday()", () => {

@@ -2054,7 +2054,7 @@ class DisplayFormatter {
     return ""
   }
 
-  static formatLabel(next, now, maxTitleLength, use12Hour) {
+  static formatLabel(next, now, maxTitleLength, use12Hour, hideTitle) {
     if (!next || !next.start) return ""
     var title = String(next.title || LABEL_UNTITLED)
     var limit = Math.max(
@@ -2097,6 +2097,9 @@ class DisplayFormatter {
           DisplayFormatter.dayLabel(next.start, now) +
           " " +
           DisplayFormatter.hm(next.start, use12Hour)
+    }
+    if (hideTitle) {
+      return suffix.replace(/^\s*·\s*/, "")
     }
     var titleLimit = Math.max(MIN_TITLE_CHARS, limit - suffix.length)
     if (title.length > titleLimit) title = title.slice(0, Math.max(1, titleLimit - 1)) + "…"
@@ -2156,10 +2159,18 @@ class DisplayFormatter {
     return status ? label + " · " + status : label
   }
 
-  static barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour) {
+  static barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour, options) {
     if (!configured || !nextMeeting) return ""
-    var icon = nextMeeting.meetUrl ? ICON_MEETING_VIDEO + "  " : ICON_CALENDAR_EVENT + "  "
-    return icon + DisplayFormatter.formatLabel(nextMeeting, now, maxTitleLength, use12Hour)
+    options = options || {}
+    var hideTitle = options.hideTitle === true
+    var showIcon = options.showIcon !== false
+    var icon = ""
+    if (showIcon) {
+      icon = nextMeeting.meetUrl ? ICON_MEETING_VIDEO + "  " : ICON_CALENDAR_EVENT + "  "
+    }
+    return (
+      icon + DisplayFormatter.formatLabel(nextMeeting, now, maxTitleLength, use12Hour, hideTitle)
+    )
   }
 
   static headerStatus(
@@ -2355,8 +2366,8 @@ function meetLabel(url) {
 function eventCalendarUrl(event, base) {
   return DisplayFormatter.eventCalendarUrl(event, base)
 }
-function formatLabel(next, now, maxTitleLength, use12Hour) {
-  return DisplayFormatter.formatLabel(next, now, maxTitleLength, use12Hour)
+function formatLabel(next, now, maxTitleLength, use12Hour, hideTitle) {
+  return DisplayFormatter.formatLabel(next, now, maxTitleLength, use12Hour, hideTitle)
 }
 function relativeStatus(next, now, use12Hour) {
   return DisplayFormatter.relativeStatus(next, now, use12Hour)
@@ -2367,8 +2378,8 @@ function timeRange(start, end, allDay, use12Hour) {
 function meetingTimeLabel(start, end, now, allDay, use12Hour) {
   return DisplayFormatter.meetingTimeLabel(start, end, now, allDay, use12Hour)
 }
-function barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour) {
-  return DisplayFormatter.barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour)
+function barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour, options) {
+  return DisplayFormatter.barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour, options)
 }
 function headerStatus(
   fetching,

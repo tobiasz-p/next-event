@@ -319,6 +319,26 @@ Item {
 
       Toggle {
         width: parent.width
+        label: "Hide event name on bar"
+        description: "Only show event time on the bar without event name"
+        checked: root.hostWidget ? root.hostWidget.hideTitle : false
+        foreground: root.contentForeground
+        fontFamily: root.contentFontFamily
+        onClicked: root.settingChanged("hideTitle", !checked)
+      }
+
+      Toggle {
+        width: parent.width
+        label: "Show icon on bar"
+        description: "Show calendar or video icon before time on the bar"
+        checked: root.hostWidget ? root.hostWidget.showIcon : true
+        foreground: root.contentForeground
+        fontFamily: root.contentFontFamily
+        onClicked: root.settingChanged("showIcon", !checked)
+      }
+
+      Toggle {
+        width: parent.width
         label: "Video meetings only in bar"
         description: "Only show upcoming events on the bar if they carry a video call link"
         checked: root.hostWidget ? root.hostWidget.showOnlyWithVideoLink : false

@@ -79,7 +79,7 @@ var LABEL_SETUP_CONNECT_TITLE = "Connect Your Calendar"
 var LABEL_SETUP_CONNECT_SUBTITLE = "Choose the method that matches your calendar provider:"
 var LABEL_SETUP_OPTION1_TITLE = "Option 1: Google Workspace / OAuth (Work accounts)"
 var LABEL_SETUP_OPTION1_DESC =
-  "If your organization disables private iCal URLs, run the interactive OAuth setup:"
+  "If your organization disables private iCal URLs, run the interactive OAuth setup (gws by default, or gog if installed):"
 var LABEL_SETUP_OPTION1_CMD = "~/.config/omarchy/plugins/tobiasz-p.next-event/sync/setup"
 var LABEL_SETUP_OPTION2_TITLE = "Option 2: Private iCal (.ics) Feed URL"
 var LABEL_SETUP_OPTION2_DESC = "For personal Google Calendar, Outlook, iCloud, or Nextcloud:"

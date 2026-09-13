@@ -9,3 +9,7 @@ node_modules/
 
 # Local logs
 *.log
+
+# Python sidecar
+__pycache__/
+*.pyc

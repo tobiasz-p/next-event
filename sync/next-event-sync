@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """
 NextEvent — Google Calendar Sync Runner
-Fetches Google Calendar events using `gws` (Google Workspace CLI) or Google APIs,
-normalizes them according to the Omarchy calendar-events contract, and writes atomically
-to ~/.local/state/omarchy/calendar-events.json.
+Fetches Google Calendar events using `gws` (default) or `gog`, normalizes them
+to the Omarchy calendar-events contract, and writes atomically to
+~/.local/state/omarchy/calendar-events.json.
+
+Backend selection (`NEXT_EVENT_CLI`):
+  gws   — Google Workspace CLI (default when installed)
+  gog   — gog CLI
+  auto  — gws if on PATH, otherwise gog (default)
+A one-line `cli` file in the profile directory also pins the backend.
 """
 
 import json
@@ -15,6 +21,10 @@ import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+BACKEND_GWS = "gws"
+BACKEND_GOG = "gog"
+BACKEND_AUTO = "auto"
 
 PROFILE_DIR = os.environ.get(
     "NEXT_EVENT_PROFILE",
@@ -96,44 +106,148 @@ def write_atomic(path: Path, doc: dict):
         raise
 
 
-def run_gws_cmd(args, profile_dir, gws_bin):
-    env = dict(os.environ)
-    env["GOOGLE_WORKSPACE_CLI_CONFIG_DIR"] = profile_dir
-    res = subprocess.run([gws_bin, *args], env=env, capture_output=True, text=True)
+def parse_collection(stdout, *keys):
+    """Unwrap a JSON list from a CLI envelope (`items`, `calendars`, `events`) or a bare list."""
+    try:
+        data = json.loads(stdout)
+    except Exception as e:
+        preview = (stdout or "")[:200]
+        raise RuntimeError(f"Failed to parse JSON: {e}\nOutput was: {preview}") from e
+
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        for key in keys:
+            value = data.get(key)
+            if isinstance(value, list):
+                return value
+    expected = ", ".join(keys) if keys else "a list"
+    raise RuntimeError(f"Unexpected JSON shape; expected {expected} or a list")
+
+
+def pinned_backend(profile_dir):
+    cfg_file = Path(profile_dir) / "cli"
+    if not cfg_file.is_file():
+        return ""
+    try:
+        return cfg_file.read_text(encoding="utf-8").strip().lower()
+    except Exception:
+        return ""
+
+
+def _require_backend(name):
+    if not shutil.which(name):
+        raise RuntimeError(
+            f"Google Calendar CLI '{name}' is selected but is not on PATH."
+        )
+    return name
+
+
+def resolve_backend(profile_dir=PROFILE_DIR):
+    """Pick gws or gog.
+
+    Precedence: NEXT_EVENT_CLI=gws|gog, then $PROFILE/cli, then auto
+    (gws if installed, otherwise gog). NEXT_EVENT_CLI=auto falls through
+    to the profile pin so installing gws later does not steal a gog setup.
+    """
+    env_cli = os.environ.get("NEXT_EVENT_CLI", "").strip().lower()
+    file_cli = pinned_backend(profile_dir)
+
+    if env_cli in (BACKEND_GWS, BACKEND_GOG):
+        return _require_backend(env_cli)
+    if file_cli in (BACKEND_GWS, BACKEND_GOG):
+        return _require_backend(file_cli)
+
+    leftover = env_cli or file_cli
+    if leftover not in (BACKEND_AUTO, ""):
+        raise RuntimeError(
+            f"Unknown Google CLI {leftover!r}. Use gws, gog, or auto."
+        )
+
+    if shutil.which(BACKEND_GWS):
+        return BACKEND_GWS
+    if shutil.which(BACKEND_GOG):
+        return BACKEND_GOG
+
+    raise RuntimeError(
+        "Neither 'gws' nor 'gog' is on PATH. "
+        "Install the default CLI with: npm install -g @googleworkspace/cli "
+        "Or use gog (https://github.com/openclaw/gogcli) and set NEXT_EVENT_CLI=gog."
+    )
+
+
+def run_cmd(bin_path, args, env=None):
+    merged = dict(os.environ)
+    if env:
+        merged.update(env)
+    res = subprocess.run([bin_path, *args], env=merged, capture_output=True, text=True)
     return res.returncode, res.stdout, res.stderr
 
 
+def run_gws_cmd(args, profile_dir, gws_bin):
+    return run_cmd(gws_bin, args, env={"GOOGLE_WORKSPACE_CLI_CONFIG_DIR": profile_dir})
+
+
+def run_gog_cmd(args, gog_bin):
+    cmd_args = []
+    account = os.environ.get("NEXT_EVENT_GOG_ACCOUNT", "").strip()
+    if account:
+        cmd_args.extend(["--account", account])
+    cmd_args.extend(args)
+    return run_cmd(gog_bin, cmd_args)
+
+
 def check_gws(gws_bin, profile_dir):
-    """Verify gws is present and authenticated."""
     code, _out, err = run_gws_cmd(["--version"], profile_dir=profile_dir, gws_bin=gws_bin)
     if code != 0:
         raise RuntimeError(f"gws not available or failed: {err}")
 
 
-def list_calendars(profile_dir, gws_bin):
-    """Return the list of calendar metadata dicts from the API."""
-    code, cal_list_out, cal_list_err = run_gws_cmd(
+def check_gog(gog_bin):
+    code, _out, err = run_gog_cmd(["--version"], gog_bin)
+    if code != 0:
+        raise RuntimeError(f"gog not available or failed: {err.strip() or f'exit {code}'}")
+
+
+def gog_auth_error(code, err):
+    message = (err or "").strip() or f"gog exited {code}"
+    if code == 4:
+        return (
+            "gog is not authenticated (exit 4). "
+            "Run `gog auth setup` and `gog auth add <email>`, "
+            f"then retry. {message}"
+        )
+    return message
+
+
+def list_calendars_gws(profile_dir, gws_bin):
+    code, out, err = run_gws_cmd(
         ["calendar", "calendarList", "list"],
         profile_dir=profile_dir,
         gws_bin=gws_bin
     )
     if code != 0:
-        raise RuntimeError(cal_list_err.strip())
-
-    try:
-        cal_data = json.loads(cal_list_out)
-    except Exception as e:
-        raise RuntimeError(f"Failed to parse calendar list output: {e}\nOutput was: {cal_list_out[:200]}")
-
-    calendars = cal_data.get("items") or []
+        raise RuntimeError(err.strip())
+    calendars = parse_collection(out, "items")
     if not calendars:
-        # Fallback to primary calendar
         calendars = [{"id": "primary", "summary": "Primary", "backgroundColor": DEFAULT_CALENDAR_COLOR}]
     return calendars
 
 
-def fetch_calendar_events(cal_id, time_min, time_max, profile_dir, gws_bin):
-    """Fetch raw event items for a single calendar. Returns a list or None on failure."""
+def list_calendars_gog(gog_bin):
+    code, out, err = run_gog_cmd(
+        ["calendar", "calendars", "--json", "--no-input", "--all"],
+        gog_bin,
+    )
+    if code != 0:
+        raise RuntimeError(gog_auth_error(code, err))
+    calendars = parse_collection(out, "calendars", "items")
+    if not calendars:
+        calendars = [{"id": "primary", "summary": "Primary", "backgroundColor": DEFAULT_CALENDAR_COLOR}]
+    return calendars
+
+
+def fetch_events_gws(cal_id, time_min, time_max, profile_dir, gws_bin):
     params = json.dumps({
         "calendarId": cal_id,
         "singleEvents": True,
@@ -142,23 +256,43 @@ def fetch_calendar_events(cal_id, time_min, time_max, profile_dir, gws_bin):
         "timeMax": time_max,
         "maxResults": MAX_RESULTS_PER_CALENDAR
     })
-
-    code, ev_out, ev_err = run_gws_cmd(
+    code, out, err = run_gws_cmd(
         ["calendar", "events", "list", "--params", params],
         profile_dir=profile_dir,
         gws_bin=gws_bin
     )
     if code != 0:
-        print(f"Warning: skipping calendar {cal_id}: {ev_err.strip()}", file=sys.stderr)
+        print(f"Warning: skipping calendar {cal_id}: {err.strip()}", file=sys.stderr)
         return None
-
     try:
-        ev_data = json.loads(ev_out)
+        return parse_collection(out, "items")
     except Exception as exc:
         print(f"Warning: could not parse events for calendar {cal_id}: {exc}", file=sys.stderr)
         return None
 
-    return ev_data.get("items") or []
+
+def fetch_events_gog(cal_id, time_min, time_max, gog_bin):
+    code, out, err = run_gog_cmd(
+        [
+            "calendar", "events",
+            "--json", "--no-input",
+            "--cal", cal_id,
+            "--from", time_min,
+            "--to", time_max,
+            "--max", str(MAX_RESULTS_PER_CALENDAR),
+            "--all-pages",
+            "--sort", "start",
+        ],
+        gog_bin,
+    )
+    if code != 0:
+        print(f"Warning: skipping calendar {cal_id}: {gog_auth_error(code, err)}", file=sys.stderr)
+        return None
+    try:
+        return parse_collection(out, "events", "items")
+    except Exception as exc:
+        print(f"Warning: could not parse events for calendar {cal_id}: {exc}", file=sys.stderr)
+        return None
 
 
 def normalize_event(g_ev, cal_id, cal_name, cal_color):
@@ -208,42 +342,36 @@ def get_calendar_filter(profile_dir):
     return []
 
 
-def fetch_via_gws(profile_dir=PROFILE_DIR):
-    gws_bin = shutil.which("gws") or "gws"
-    check_gws(gws_bin, profile_dir)
+def calendar_matches_filter(cal, cal_filter):
+    if not cal_filter:
+        return True
+    cal_id = str(cal.get("id") or "")
+    cal_summary = str(cal.get("summary") or "")
+    for needle in cal_filter:
+        if needle == "primary" and cal.get("primary"):
+            return True
+        if needle in cal_id.lower() or needle in cal_summary.lower():
+            return True
+    return False
 
-    calendars = list_calendars(profile_dir, gws_bin)
 
-    now = datetime.now(timezone.utc)
-    time_min = (now - timedelta(days=FETCH_DAYS_PAST)).isoformat()
-    time_max = (now + timedelta(days=FETCH_DAYS_AHEAD)).isoformat()
-
-    cal_filter = get_calendar_filter(profile_dir)
-
+def collect_events(calendars, time_min, time_max, fetch_items):
+    cal_filter = get_calendar_filter(PROFILE_DIR)
     all_events = []
 
     for cal in calendars:
         cal_id = cal.get("id", "")
-        cal_summary = cal.get("summary", "")
+        if not cal_id:
+            continue
         if cal.get("selected") is False:
             continue
-
-        if cal_filter:
-            is_match = False
-            for f in cal_filter:
-                if f == "primary" and cal.get("primary"):
-                    is_match = True
-                    break
-                if f in cal_id.lower() or f in cal_summary.lower():
-                    is_match = True
-                    break
-            if not is_match:
-                continue
+        if not calendar_matches_filter(cal, cal_filter):
+            continue
 
         cal_name = cal.get("summary") or cal_id
         cal_color = cal.get("backgroundColor") or DEFAULT_CALENDAR_COLOR
 
-        items = fetch_calendar_events(cal_id, time_min, time_max, profile_dir, gws_bin)
+        items = fetch_items(cal_id, time_min, time_max)
         if items is None:
             continue
 
@@ -255,27 +383,64 @@ def fetch_via_gws(profile_dir=PROFILE_DIR):
                 all_events.append(ev)
 
     all_events.sort(key=lambda e: e.get("start", ""))
+    return all_events
 
+
+def write_events(events, source, now):
     doc = {
         "version": 1,
         "syncedAt": now.isoformat(),
-        "source": "google-workspace",
-        "events": all_events
+        "source": source,
+        "events": events
     }
-
     write_atomic(TARGET_PATH, doc)
-    print(f"Synced {len(all_events)} events into {TARGET_PATH}")
-    return len(all_events)
+    print(f"Synced {len(events)} events into {TARGET_PATH} ({source})")
+    return len(events)
+
+
+def fetch_via_gws(profile_dir=PROFILE_DIR):
+    gws_bin = shutil.which("gws") or "gws"
+    check_gws(gws_bin, profile_dir)
+    calendars = list_calendars_gws(profile_dir, gws_bin)
+
+    now = datetime.now(timezone.utc)
+    time_min = (now - timedelta(days=FETCH_DAYS_PAST)).isoformat()
+    time_max = (now + timedelta(days=FETCH_DAYS_AHEAD)).isoformat()
+
+    events = collect_events(
+        calendars,
+        time_min,
+        time_max,
+        lambda cal_id, tmin, tmax: fetch_events_gws(cal_id, tmin, tmax, profile_dir, gws_bin),
+    )
+    return write_events(events, "google-workspace", now)
+
+
+def fetch_via_gog(profile_dir=PROFILE_DIR):
+    gog_bin = shutil.which("gog") or "gog"
+    check_gog(gog_bin)
+    calendars = list_calendars_gog(gog_bin)
+
+    now = datetime.now(timezone.utc)
+    time_min = (now - timedelta(days=FETCH_DAYS_PAST)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    time_max = (now + timedelta(days=FETCH_DAYS_AHEAD)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    events = collect_events(
+        calendars,
+        time_min,
+        time_max,
+        lambda cal_id, tmin, tmax: fetch_events_gog(cal_id, tmin, tmax, gog_bin),
+    )
+    return write_events(events, "gog", now)
 
 
 def main():
-    if not shutil.which("gws"):
-        print("Error: 'gws' (Google Workspace CLI) is not found on PATH.", file=sys.stderr)
-        print("Install it with: npm install -g @googleworkspace/cli", file=sys.stderr)
-        sys.exit(1)
-
     try:
-        fetch_via_gws()
+        backend = resolve_backend()
+        if backend == BACKEND_GOG:
+            fetch_via_gog()
+        else:
+            fetch_via_gws()
         sys.exit(0)
     except Exception as e:
         print(f"Sync error: {e}", file=sys.stderr)

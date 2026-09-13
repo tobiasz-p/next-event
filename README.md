@@ -108,6 +108,19 @@ In many Google Workspace organizations, administrators disable the "Secret addre
 
 The setup script automates GCP project creation, Google Calendar API enablement, the OAuth login, and installs a systemd user timer to automatically sync events into `~/.local/state/omarchy/calendar-events.json` every 5 minutes.
 
+#### Optional: `gog` instead of `gws`
+
+`gws` remains the default Google CLI. If [gog](https://github.com/openclaw/gogcli) is installed and `gws` is not, setup and sync use `gog` automatically. When both are installed, setup asks and prefers `gws`. Auto-detect prefers `gws` whenever it is on `PATH`.
+
+Pin the backend explicitly:
+
+```sh
+export NEXT_EVENT_CLI=gog   # or gws
+~/.config/omarchy/plugins/tobiasz-p.next-event/sync/setup
+```
+
+Setup writes `~/.config/gws-omarchy-calendar/cli` (`gws` or `gog`) and sets `NEXT_EVENT_CLI` on the systemd unit so later `gws` installs do not silently take over a `gog` setup. `NEXT_EVENT_CLI=auto` (the unit default) still honors that `cli` file. Optional: `NEXT_EVENT_GOG_ACCOUNT` to select a gog account. The systemd unit also puts `~/.local/bin` on `PATH` so a user-local `gog` or `gws` is visible to the timer.
+
 ---
 
 ### Option 2: Private iCal (.ics) Feed URL(s) (Personal Accounts)
@@ -162,7 +175,7 @@ Configure settings with `omarchy bar set tobiasz-p.next-event <key> <value>`:
 | Key                   | Default | Description                                         |
 | --------------------- | ------- | --------------------------------------------------- |
 | `icsUrl`              | `""`    | Calendar iCal feed(s). One URL, or comma-separated `label\|url`, `label\|#color\|url` feeds, or a JSON array of `{ url, label, color }` objects. If left empty, NextEvent reads from the JSON state file |
-| `eventsJsonPath`      | `~/.local/state/omarchy/calendar-events.json` | Path to the JSON events state file (written by `sync/setup`, `omarchy-calendar`, or custom script) |
+| `eventsJsonPath`      | `~/.local/state/omarchy/calendar-events.json` | Path to the JSON events state file (written by `sync/setup` via `gws` or `gog`, or a custom script) |
 | `refreshMinutes`      | `5`     | How often to refetch feeds in ICS mode              |
 | `showDaysAhead`       | `3`     | How many days ahead to list meetings                |
 | `maxTitleLength`      | `28`    | Bar label truncation length                         |

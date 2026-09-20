@@ -172,6 +172,8 @@ Configure settings with `omarchy bar set tobiasz-p.next-event <key> <value>`:
 | `showCalendarLabel`   | `true`  | Include calendar name in the bar widget tooltip      |
 | `useCalendarColors`   | `true`  | Tint event indicators and badges in the panel using calendar-specific colors |
 | `colorOnBar`          | `false` | Also tint the bar widget text using the next meeting's calendar color (requires `useCalendarColors` to be `true`) |
+| `hideTitle`           | `false` | Only show meeting time/countdown in the bar without event name |
+| `showIcon`            | `true`  | Show calendar or video icon before time in the bar  |
 | `browserCommand`      | `""`    | Command used to open the Meet URL (`xdg-open` by default) |
 | `calendarUrlBase`     | `"https://calendar.google.com/calendar"` | Base URL for "Open in Calendar" (opens `/r` route; set e.g. `https://calendar.google.com/calendar/u/1` for multi-account) |
 | `keyRefresh`          | `r`     | Panel key that force-refreshes the feeds            |

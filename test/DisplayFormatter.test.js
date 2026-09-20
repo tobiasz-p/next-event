@@ -216,6 +216,27 @@ describe("DisplayFormatter", () => {
       assert.strictEqual(DisplayFormatter.barLabel(false, timedEvent, now, 30), "")
       assert.strictEqual(DisplayFormatter.barLabel(true, null, now, 30), "")
     })
+
+    it("hides title when hideTitle option is true", () => {
+      assert.strictEqual(
+        DisplayFormatter.barLabel(true, timedEvent, now, 30, false, { hideTitle: true }),
+        "  in 60 min"
+      )
+    })
+
+    it("hides icon when showIcon option is false", () => {
+      assert.strictEqual(
+        DisplayFormatter.barLabel(true, timedEvent, now, 30, false, { showIcon: false }),
+        "Sprint Review · in 60 min"
+      )
+    })
+
+    it("shows only time when hideTitle is true and showIcon is false", () => {
+      assert.strictEqual(
+        DisplayFormatter.barLabel(true, timedEvent, now, 30, false, { hideTitle: true, showIcon: false }),
+        "in 60 min"
+      )
+    })
   })
 
   describe("headerStatus()", () => {

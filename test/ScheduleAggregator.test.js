@@ -178,5 +178,71 @@ describe("ScheduleAggregator", () => {
       assert.strictEqual(state.calendarLegend.length, 1)
       assert.strictEqual(state.calendarLegend[0].name, "Work")
     })
+
+    describe("excludeKeywords", () => {
+      const lunch = new CalendarEvent({
+        uid: "lunch",
+        title: "Team Lunch",
+        start: new Date(2026, 7, 28, 12, 0, 0),
+        end: new Date(2026, 7, 28, 13, 0, 0),
+        meetUrl: "https://meet.google.com/lunch"
+      })
+      const focus = new CalendarEvent({
+        uid: "focus",
+        title: "Deep work",
+        description: "Focus time block",
+        location: "Lunch room",
+        start: new Date(2026, 7, 29, 9, 0, 0),
+        end: new Date(2026, 7, 29, 11, 0, 0)
+      })
+      const events = [todayTimed1, lunch, focus]
+
+      it("leaves behavior unchanged by default", () => {
+        const base = ScheduleAggregator.computeScheduleState(events, now, {})
+        const empty = ScheduleAggregator.computeScheduleState(events, now, {
+          excludeKeywords: ""
+        })
+        assert.deepStrictEqual(empty, base)
+        assert.strictEqual(base.meetings.length, 3)
+      })
+
+      it("removes matching events from every bucket", () => {
+        const state = ScheduleAggregator.computeScheduleState(events, now, {
+          excludeKeywords: "lunch, ,STANDUP"
+        })
+        assert.deepStrictEqual(
+          state.meetings.map(e => e.uid),
+          ["focus"]
+        )
+        assert.strictEqual(state.nextMeeting.uid, "focus")
+        assert.deepStrictEqual(state.upcomingToday, [])
+        const grouped = state.scheduleGroups.flatMap(g => g.items.map(e => e.uid))
+        assert.deepStrictEqual(grouped, ["focus"])
+      })
+
+      it("matches titles only, not description or location", () => {
+        const state = ScheduleAggregator.computeScheduleState(events, now, {
+          excludeKeywords: "Focus time,Lunch room"
+        })
+        assert.strictEqual(
+          state.meetings.some(e => e.uid === "focus"),
+          true
+        )
+      })
+
+      it("drops the next meeting when its title is excluded", () => {
+        const state = ScheduleAggregator.computeScheduleState([lunch], now, {
+          excludeKeywords: "lunch"
+        })
+        assert.strictEqual(state.nextMeeting, null)
+        assert.deepStrictEqual(state.meetings, [])
+      })
+
+      it("does not mutate the input events", () => {
+        const input = [todayTimed1, lunch]
+        ScheduleAggregator.computeScheduleState(input, now, { excludeKeywords: "lunch" })
+        assert.strictEqual(input.length, 2)
+      })
+    })
   })
 })

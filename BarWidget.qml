@@ -32,6 +32,8 @@ BarWidget {
   readonly property bool showOnlyWithVideoLink: Model.toBoolean(setting("showOnlyWithVideoLink", false), false)
   readonly property bool showCalendarLabel: Model.toBoolean(setting("showCalendarLabel", true), true)
   readonly property bool useCalendarColors: Model.toBoolean(setting("useCalendarColors", true), true)
+  // Comma-separated title keywords; matching events are hidden everywhere.
+  readonly property string excludeKeywords: String(setting("excludeKeywords", "") || "")
   readonly property bool colorOnBar: Model.toBoolean(setting("colorOnBar", false), false)
   readonly property string browserCommand: String(setting("browserCommand", "") || "").trim()
   // Base for "Open in Calendar". Defaults to the signed-in account; set to
@@ -192,6 +194,7 @@ BarWidget {
       showOnlyWithVideoLink: root.showOnlyWithVideoLink,
       maxMeetingRows: root.maxMeetingRows,
       maxScheduleRows: root.maxScheduleRows,
+      excludeKeywords: root.excludeKeywords,
       feeds: root.icsFeeds
     })
     root.meetings = state.meetings
@@ -300,6 +303,7 @@ BarWidget {
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
+  onExcludeKeywordsChanged: root.recalc()
   onBarChanged: injectPanel()
   onSettingsChanged: {
     injectPanel()

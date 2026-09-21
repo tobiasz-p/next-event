@@ -366,6 +366,18 @@ Item {
         fontFamily: root.contentFontFamily
         onClicked: root.settingChanged("timeFormat", checked ? Model.TIME_FORMAT_24 : Model.TIME_FORMAT_12)
       }
+
+      SettingField {
+        id: excludeKeywordsField
+        width: parent.width
+        label: "Hidden event keywords"
+        description: "Hide events whose title contains any of these comma-separated keywords (case-insensitive)."
+        text: root.hostWidget ? root.hostWidget.excludeKeywords : ""
+        placeholderText: "Lunch,Focus time,OOO"
+        contentForeground: root.contentForeground
+        contentFontFamily: root.contentFontFamily
+        onModified: function(val) { root.settingChanged("excludeKeywords", val) }
+      }
     }
 
     PanelSeparator {

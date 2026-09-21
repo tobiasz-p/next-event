@@ -1927,6 +1927,36 @@ class ScheduleAggregator {
     return legend
   }
 
+  // Comma-separated keyword string -> trimmed, non-empty keyword list.
+  static parseExcludeKeywords(value) {
+    if (typeof value !== "string") return []
+    var keywords = []
+    var parts = value.split(",")
+    for (var i = 0; i < parts.length; i++) {
+      var keyword = parts[i].trim()
+      if (keyword !== "") keywords.push(keyword)
+    }
+    return keywords
+  }
+
+  // True when the title contains any keyword as a case-insensitive substring.
+  static matchesExcludeKeywords(title, keywords) {
+    var haystack = String(title || "").toLowerCase()
+    for (var i = 0; i < keywords.length; i++) {
+      if (haystack.indexOf(keywords[i].toLowerCase()) !== -1) return true
+    }
+    return false
+  }
+
+  // Drops events whose title matches the comma-separated keyword string.
+  static filterExcluded(events, excludeKeywords) {
+    var keywords = ScheduleAggregator.parseExcludeKeywords(excludeKeywords)
+    if (keywords.length === 0) return events
+    return events.filter(function (event) {
+      return !ScheduleAggregator.matchesExcludeKeywords(event.title, keywords)
+    })
+  }
+
   static computeScheduleState(events, now, options) {
     events = events || []
     now = now || new Date()
@@ -1935,6 +1965,8 @@ class ScheduleAggregator {
     var showOnlyWithVideoLink = options.showOnlyWithVideoLink === true
     var maxMeetingRows = options.maxMeetingRows || DEFAULT_MAX_ROWS
     var maxScheduleRows = options.maxScheduleRows || DEFAULT_MAX_ROWS
+
+    events = ScheduleAggregator.filterExcluded(events, options.excludeKeywords)
 
     var meetings = ScheduleAggregator.buildUpcoming(events, now, {
       lookaheadDays: lookaheadDays,
@@ -2329,6 +2361,13 @@ function toBoolean(value, fallback) {
   return FeedConfigParser.toBoolean(value, fallback)
 }
 
+function parseExcludeKeywords(value) {
+  return ScheduleAggregator.parseExcludeKeywords(value)
+}
+function matchesExcludeKeywords(title, keywords) {
+  return ScheduleAggregator.matchesExcludeKeywords(title, keywords)
+}
+
 function buildUpcoming(events, now, options) {
   return ScheduleAggregator.buildUpcoming(events, now, options)
 }
@@ -2463,6 +2502,8 @@ if (typeof module !== "undefined" && module.exports) {
     dedupeEvents: dedupeEvents,
     normalizeKey: normalizeKey,
     toBoolean: toBoolean,
+    parseExcludeKeywords: parseExcludeKeywords,
+    matchesExcludeKeywords: matchesExcludeKeywords,
     parseTimeFormat: parseTimeFormat,
     is12Hour: is12Hour,
     pickCalendarColor: pickCalendarColor,

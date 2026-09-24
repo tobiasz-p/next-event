@@ -182,6 +182,20 @@ describe("DisplayFormatter", () => {
       )
     })
 
+    it("formats tomorrow's all-day event with local date from iCal", () => {
+      const localTomorrow = new CalendarEvent({
+        uid: "local-tmrw",
+        title: "Local Event",
+        start: new Date(2026, 7, 29),
+        end: new Date(2026, 7, 30),
+        allDay: true
+      })
+      assert.strictEqual(
+        DisplayFormatter.formatLabel(localTomorrow, now, 30),
+        "Local Event · Tmrw All day"
+      )
+    })
+
     it("truncates long titles exceeding maxTitleLength", () => {
       const longEvent = new CalendarEvent({
         title: "Very Long Team Meeting With Many Words",

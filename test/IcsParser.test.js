@@ -130,6 +130,29 @@ describe("IcsParser", () => {
       assert.strictEqual(events2[0].feedLabel, "Work")
     })
 
+    it("parses all-day events with date-only format and correct startKey", () => {
+      const ics = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "BEGIN:VEVENT",
+        "UID:all-day-event",
+        "DTSTART;VALUE=DATE:20260828",
+        "DTEND;VALUE=DATE:20260829",
+        "SUMMARY:All Day Event",
+        "END:VEVENT",
+        "END:VCALENDAR"
+      ].join("\r\n")
+      const events = IcsParser.parse(ics, { now: NOW })
+      assert.strictEqual(events.length, 1)
+      assert.strictEqual(events[0].allDay, true)
+      // Verify startKey is correctly computed from local date, not UTC date
+      // This ensures all-day events appear on the correct day in all timezones
+      assert.strictEqual(events[0].startKey, 20260828)
+      assert.strictEqual(events[0].start.getFullYear(), 2026)
+      assert.strictEqual(events[0].start.getMonth(), 7)
+      assert.strictEqual(events[0].start.getDate(), 28)
+    })
+
     it("correctly includes rescheduled recurrence overrides (past instance moved forward)", () => {
       // Recurring weekly on Mondays (Aug 10, Aug 17, Aug 24).
       // Aug 10 was in the past relative to NOW (Aug 17 09:00Z).

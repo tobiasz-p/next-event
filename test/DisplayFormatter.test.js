@@ -2,7 +2,7 @@
 
 const { describe, it } = require("node:test")
 const assert = require("node:assert/strict")
-const { DisplayFormatter, CalendarEvent } = require("../Model.js")
+const { DisplayFormatter, CalendarEvent, ScheduleAggregator } = require("../Model.js")
 
 describe("DisplayFormatter", () => {
   const now = new Date(2026, 7, 28, 9, 0, 0)
@@ -195,10 +195,10 @@ describe("DisplayFormatter", () => {
   })
 
   describe("barLabel()", () => {
-    it("returns formatted icon and title when configured in 24h and 12h", () => {
+    it("returns just the title and time, without an icon, in 24h and 12h", () => {
       assert.strictEqual(
         DisplayFormatter.barLabel(true, timedEvent, now, 30, false),
-        "  Sprint Review · in 60 min"
+        "Sprint Review · in 60 min"
       )
       const laterEvent = new CalendarEvent({
         title: "Sprint Review",
@@ -208,13 +208,23 @@ describe("DisplayFormatter", () => {
       })
       assert.strictEqual(
         DisplayFormatter.barLabel(true, laterEvent, now, 30, true),
-        "  Sprint Review · 2:00 PM"
+        "Sprint Review · 2:00 PM"
+      )
+      assert.strictEqual(
+        DisplayFormatter.barLabel(true, allDayToday, now, 30),
+        "Hackathon · All day"
       )
     })
 
     it("returns empty string when unconfigured or without meeting", () => {
       assert.strictEqual(DisplayFormatter.barLabel(false, timedEvent, now, 30), "")
       assert.strictEqual(DisplayFormatter.barLabel(true, null, now, 30), "")
+    })
+
+    it("returns empty string when the schedule has no upcoming event", () => {
+      const state = ScheduleAggregator.computeScheduleState([], now, { lookaheadDays: 3 })
+      assert.strictEqual(state.nextMeeting, null)
+      assert.strictEqual(DisplayFormatter.barLabel(true, state.nextMeeting, now, 30), "")
     })
   })
 

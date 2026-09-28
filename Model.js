@@ -2156,10 +2156,11 @@ class DisplayFormatter {
     return status ? label + " · " + status : label
   }
 
+  // Just the event text: the title and countdown already say what it is. An
+  // empty string tells the bar to show the muted ICON_CALENDAR_EMPTY instead.
   static barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour) {
     if (!configured || !nextMeeting) return ""
-    var icon = nextMeeting.meetUrl ? ICON_MEETING_VIDEO + "  " : ICON_CALENDAR_EVENT + "  "
-    return icon + DisplayFormatter.formatLabel(nextMeeting, now, maxTitleLength, use12Hour)
+    return DisplayFormatter.formatLabel(nextMeeting, now, maxTitleLength, use12Hour)
   }
 
   static headerStatus(

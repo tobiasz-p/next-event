@@ -47,7 +47,7 @@ describe("Model (Facade)", () => {
       const state = Model.computeScheduleState([ev], now, { lookaheadDays: 3 })
       assert.strictEqual(state.nextMeeting.title, "Team Standup")
       assert.strictEqual(Model.heroHeaderMeta(ev), "30m  ·    Meet")
-      assert.strictEqual(Model.barLabel(true, ev, now, 30), "  Team Standup · in 60 min")
+      assert.strictEqual(Model.barLabel(true, ev, now, 30), "Team Standup · in 60 min")
       assert.strictEqual(Model.hm(ev.start, true), "10:00 AM")
       assert.strictEqual(Model.timeRange(ev.start, ev.end, false, true), "10:00 AM–10:30 AM")
       assert.deepStrictEqual(Model.buildCalendarLegend([ev], []), [])

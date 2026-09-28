@@ -366,6 +366,16 @@ Item {
         fontFamily: root.contentFontFamily
         onClicked: root.settingChanged("timeFormat", checked ? Model.TIME_FORMAT_24 : Model.TIME_FORMAT_12)
       }
+
+      Toggle {
+        width: parent.width
+        label: "Relative start time in bar"
+        description: "Show how far away the next event is (in 3 hours, tomorrow) instead of its start time"
+        checked: root.hostWidget ? root.hostWidget.relativeTime : false
+        foreground: root.contentForeground
+        fontFamily: root.contentFontFamily
+        onClicked: root.settingChanged("relativeTime", !checked)
+      }
     }
 
     PanelSeparator {

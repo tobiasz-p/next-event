@@ -133,6 +133,48 @@ describe("DisplayFormatter", () => {
     })
   })
 
+  describe("relativeStart()", () => {
+    const at = (day, hour, minute, second) => new Date(2026, 7, day, hour, minute || 0, second || 0)
+
+    it("counts minutes up to an hour", () => {
+      assert.strictEqual(DisplayFormatter.relativeStart(at(28, 9, 0, 20), now), "in a min")
+      assert.strictEqual(DisplayFormatter.relativeStart(at(28, 9, 1), now), "in a min")
+      assert.strictEqual(DisplayFormatter.relativeStart(at(28, 9, 5), now), "in 5 min")
+      assert.strictEqual(DisplayFormatter.relativeStart(at(28, 10, 0), now), "in 60 min")
+    })
+
+    it("counts rounded hours for the rest of the day", () => {
+      assert.strictEqual(DisplayFormatter.relativeStart(at(28, 10, 1), now), "in 1 hour")
+      assert.strictEqual(DisplayFormatter.relativeStart(at(28, 10, 29), now), "in 1 hour")
+      assert.strictEqual(DisplayFormatter.relativeStart(at(28, 10, 29, 45), now), "in 1 hour")
+      assert.strictEqual(DisplayFormatter.relativeStart(at(28, 10, 30), now), "in 2 hours")
+      assert.strictEqual(DisplayFormatter.relativeStart(at(28, 14, 0), now), "in 5 hours")
+      assert.strictEqual(DisplayFormatter.relativeStart(at(28, 23, 0), now), "in 14 hours")
+    })
+
+    it("keeps counting hours a few hours past midnight", () => {
+      const lateEvening = at(28, 22, 0)
+      assert.strictEqual(DisplayFormatter.relativeStart(at(29, 1, 0), lateEvening), "in 3 hours")
+      assert.strictEqual(DisplayFormatter.relativeStart(at(29, 3, 0), lateEvening), "in 5 hours")
+      assert.strictEqual(DisplayFormatter.relativeStart(at(29, 4, 0), lateEvening), "tomorrow")
+    })
+
+    it("says tomorrow for the next calendar day", () => {
+      assert.strictEqual(DisplayFormatter.relativeStart(at(29, 8, 0), now), "tomorrow")
+      assert.strictEqual(DisplayFormatter.relativeStart(at(29, 23, 0), now), "tomorrow")
+      assert.strictEqual(DisplayFormatter.relativeStart(at(29, 9, 0), at(28, 20, 0)), "tomorrow")
+    })
+
+    it("counts calendar days beyond tomorrow", () => {
+      assert.strictEqual(DisplayFormatter.relativeStart(at(30, 8, 0), now), "in 2 days")
+      assert.strictEqual(DisplayFormatter.relativeStart(at(30, 1, 0), at(28, 23, 0)), "in 2 days")
+      assert.strictEqual(
+        DisplayFormatter.relativeStart(new Date(2026, 8, 7, 9, 0), now),
+        "in 10 days"
+      )
+    })
+  })
+
   describe("formatLabel()", () => {
     it("formats upcoming timed event with relative minutes", () => {
       assert.strictEqual(
@@ -191,6 +233,63 @@ describe("DisplayFormatter", () => {
       const label = DisplayFormatter.formatLabel(longEvent, now, 20)
       assert.strictEqual(label.length <= 20, true)
       assert.strictEqual(label.includes("…"), true)
+    })
+
+    it("formats future timed events relative to now when relativeTime is on", () => {
+      const laterToday = new CalendarEvent({
+        title: "Architecture Sync",
+        start: new Date(2026, 7, 28, 14, 0, 0),
+        end: new Date(2026, 7, 28, 15, 0, 0)
+      })
+      const tomorrowMeeting = new CalendarEvent({
+        title: "Design Review",
+        start: new Date(2026, 7, 29, 13, 0, 0),
+        end: new Date(2026, 7, 29, 14, 0, 0)
+      })
+      assert.strictEqual(
+        DisplayFormatter.formatLabel(laterToday, now, 40, false, true),
+        "Architecture Sync · in 5 hours"
+      )
+      assert.strictEqual(
+        DisplayFormatter.formatLabel(laterToday, now, 40, false, false),
+        "Architecture Sync · 14:00"
+      )
+      assert.strictEqual(
+        DisplayFormatter.formatLabel(tomorrowMeeting, now, 40, true, true),
+        "Design Review · tomorrow"
+      )
+    })
+
+    it("is applied to the bar label when barLabel gets relativeTime", () => {
+      const laterToday = new CalendarEvent({
+        title: "Architecture Sync",
+        start: new Date(2026, 7, 28, 14, 0, 0),
+        end: new Date(2026, 7, 28, 15, 0, 0)
+      })
+      assert.match(
+        DisplayFormatter.barLabel(true, laterToday, now, 40, false, true),
+        /Architecture Sync · in 5 hours$/
+      )
+      assert.match(
+        DisplayFormatter.barLabel(true, laterToday, now, 40, false),
+        /Architecture Sync · 14:00$/
+      )
+    })
+
+    it("leaves ongoing and all-day labels alone when relativeTime is on", () => {
+      const ongoing = new CalendarEvent({
+        title: "Planning",
+        start: new Date(2026, 7, 28, 8, 30, 0),
+        end: new Date(2026, 7, 28, 9, 30, 0)
+      })
+      assert.strictEqual(
+        DisplayFormatter.formatLabel(ongoing, now, 40, false, true),
+        "Planning · 30 min left"
+      )
+      assert.strictEqual(
+        DisplayFormatter.formatLabel(allDayTmrw, now, 40, false, true),
+        "Offsite · Tmrw All day"
+      )
     })
   })
 

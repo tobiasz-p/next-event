@@ -18,6 +18,9 @@ var DEFAULT_LOOKAHEAD_DAYS = 3
 var DEFAULT_MAX_TITLE_LENGTH = 28
 var MIN_MAX_TITLE_LENGTH = 8
 var MIN_TITLE_CHARS = 3
+// With relativeTime on, tomorrow's events closer than this many hours read
+// "in 4 hours" rather than "tomorrow".
+var RELATIVE_HOURS_ACROSS_MIDNIGHT = 6
 var DEFAULT_MAX_FEED_SIZE_MIB = 10
 var FETCH_TIMEOUT_SECONDS = 15
 var BYTES_PER_MIB = 1048576
@@ -166,6 +169,7 @@ var Constants = {
   DEFAULT_MAX_TITLE_LENGTH: DEFAULT_MAX_TITLE_LENGTH,
   MIN_MAX_TITLE_LENGTH: MIN_MAX_TITLE_LENGTH,
   MIN_TITLE_CHARS: MIN_TITLE_CHARS,
+  RELATIVE_HOURS_ACROSS_MIDNIGHT: RELATIVE_HOURS_ACROSS_MIDNIGHT,
   DEFAULT_MAX_FEED_SIZE_MIB: DEFAULT_MAX_FEED_SIZE_MIB,
   FETCH_TIMEOUT_SECONDS: FETCH_TIMEOUT_SECONDS,
   BYTES_PER_MIB: BYTES_PER_MIB,
@@ -2054,7 +2058,28 @@ class DisplayFormatter {
     return ""
   }
 
-  static formatLabel(next, now, maxTitleLength, use12Hour) {
+  // How far away a future start is, coarsening as it gets further out:
+  // "in 5 min", "in 3 hours", "tomorrow", "in 4 days". Hours are used for the
+  // rest of today and for tomorrow's events less than
+  // RELATIVE_HOURS_ACROSS_MIDNIGHT away, where "tomorrow" would make a 1 AM
+  // event seen at 10 PM sound a day away.
+  static relativeStart(start, now) {
+    var msUntil = start.getTime() - now.getTime()
+    var minutes = Math.max(1, Math.round(msUntil / MS_PER_MINUTE))
+    if (minutes <= 1) return "in a min"
+    if (minutes <= MINUTES_PER_HOUR) return "in " + minutes + " min"
+    var dayDiff = Math.round(
+      (DateTimeUtils.startOfDay(start) - DateTimeUtils.startOfDay(now)) / MS_PER_DAY
+    )
+    if (dayDiff === 0 || msUntil < RELATIVE_HOURS_ACROSS_MIDNIGHT * MS_PER_HOUR) {
+      var hours = Math.round(msUntil / MS_PER_HOUR)
+      return "in " + hours + (hours === 1 ? " hour" : " hours")
+    }
+    if (dayDiff === 1) return LABEL_TOMORROW.toLowerCase()
+    return "in " + dayDiff + " days"
+  }
+
+  static formatLabel(next, now, maxTitleLength, use12Hour, relativeTime) {
     if (!next || !next.start) return ""
     var title = String(next.title || LABEL_UNTITLED)
     var limit = Math.max(
@@ -2086,9 +2111,8 @@ class DisplayFormatter {
           (remainingMinutes > 0 ? hours + "h " + remainingMinutes + "m" : hours + "h") +
           " left"
       }
-    } else if (start - nowMs <= MS_PER_HOUR && start > nowMs) {
-      var minutesBefore = Math.max(1, Math.round((start - nowMs) / MS_PER_MINUTE))
-      suffix = minutesBefore <= 1 ? " · in a min" : " · in " + minutesBefore + " min"
+    } else if (start > nowMs && (relativeTime === true || start - nowMs <= MS_PER_HOUR)) {
+      suffix = " · " + DisplayFormatter.relativeStart(next.start, now)
     } else {
       suffix = " · " + DisplayFormatter.hm(next.start, use12Hour)
       if (!DateTimeUtils.isSameDay(next.start, now))
@@ -2156,10 +2180,12 @@ class DisplayFormatter {
     return status ? label + " · " + status : label
   }
 
-  static barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour) {
+  static barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour, relativeTime) {
     if (!configured || !nextMeeting) return ""
     var icon = nextMeeting.meetUrl ? ICON_MEETING_VIDEO + "  " : ICON_CALENDAR_EVENT + "  "
-    return icon + DisplayFormatter.formatLabel(nextMeeting, now, maxTitleLength, use12Hour)
+    return (
+      icon + DisplayFormatter.formatLabel(nextMeeting, now, maxTitleLength, use12Hour, relativeTime)
+    )
   }
 
   static headerStatus(
@@ -2355,8 +2381,11 @@ function meetLabel(url) {
 function eventCalendarUrl(event, base) {
   return DisplayFormatter.eventCalendarUrl(event, base)
 }
-function formatLabel(next, now, maxTitleLength, use12Hour) {
-  return DisplayFormatter.formatLabel(next, now, maxTitleLength, use12Hour)
+function formatLabel(next, now, maxTitleLength, use12Hour, relativeTime) {
+  return DisplayFormatter.formatLabel(next, now, maxTitleLength, use12Hour, relativeTime)
+}
+function relativeStart(start, now) {
+  return DisplayFormatter.relativeStart(start, now)
 }
 function relativeStatus(next, now, use12Hour) {
   return DisplayFormatter.relativeStatus(next, now, use12Hour)
@@ -2367,8 +2396,15 @@ function timeRange(start, end, allDay, use12Hour) {
 function meetingTimeLabel(start, end, now, allDay, use12Hour) {
   return DisplayFormatter.meetingTimeLabel(start, end, now, allDay, use12Hour)
 }
-function barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour) {
-  return DisplayFormatter.barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour)
+function barLabel(configured, nextMeeting, now, maxTitleLength, use12Hour, relativeTime) {
+  return DisplayFormatter.barLabel(
+    configured,
+    nextMeeting,
+    now,
+    maxTitleLength,
+    use12Hour,
+    relativeTime
+  )
 }
 function headerStatus(
   fetching,
@@ -2479,6 +2515,7 @@ if (typeof module !== "undefined" && module.exports) {
     eventCalendarUrl: eventCalendarUrl,
     formatLabel: formatLabel,
     relativeStatus: relativeStatus,
+    relativeStart: relativeStart,
     timeRange: timeRange,
     meetingTimeLabel: meetingTimeLabel,
     barLabel: barLabel,

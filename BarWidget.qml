@@ -33,6 +33,7 @@ BarWidget {
   readonly property bool showCalendarLabel: Model.toBoolean(setting("showCalendarLabel", true), true)
   readonly property bool useCalendarColors: Model.toBoolean(setting("useCalendarColors", true), true)
   readonly property bool colorOnBar: Model.toBoolean(setting("colorOnBar", false), false)
+  readonly property bool relativeTime: Model.toBoolean(setting("relativeTime", false), false)
   readonly property string browserCommand: String(setting("browserCommand", "") || "").trim()
   // Base for "Open in Calendar". Defaults to the signed-in account; set to
   // e.g. "https://calendar.google.com/calendar/u/2" to open a specific
@@ -83,7 +84,7 @@ BarWidget {
   property string currentFeedColor: ""
   property string feedOutput: ""
 
-  readonly property string label: Model.barLabel(root.configured, root.nextMeeting, root.now, root.maxTitleLength, root.use12Hour)
+  readonly property string label: Model.barLabel(root.configured, root.nextMeeting, root.now, root.maxTitleLength, root.use12Hour, root.relativeTime)
   readonly property bool inMeeting: nextMeeting
     && !nextMeeting.allDay
     && nextMeeting.start && nextMeeting.end

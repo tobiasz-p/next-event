@@ -6,5 +6,8 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 ExecStart=%h/.config/omarchy/plugins/tobiasz-p.next-event/sync/next-event-sync
+Environment=PATH=%h/.local/bin:%h/go/bin:/usr/local/bin:/usr/bin
 Environment=NEXT_EVENT_PROFILE=%h/.config/gws-omarchy-calendar
+Environment=NEXT_EVENT_CLI=auto
+Environment=NEXT_EVENT_GOG_ACCOUNT=
 Environment=NEXT_EVENT_STATE_FILE=%h/.local/state/omarchy/calendar-events.json

@@ -68,3 +68,50 @@ jobs:
 
       - name: Run unit tests
         run: npm test
+
+  sidecar:
+    name: Google sync sidecar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Syntax-check setup and next-event-sync
+        run: |
+          bash -n sync/setup
+          python3 -m py_compile sync/next-event-sync
+
+      - name: Unit-test CLI envelope parsing and backend selection
+        run: |
+          python3 - <<'PY'
+          import importlib.machinery
+          import importlib.util
+          from unittest.mock import patch
+
+          loader = importlib.machinery.SourceFileLoader(
+              "next_event_sync", "sync/next-event-sync"
+          )
+          spec = importlib.util.spec_from_loader("next_event_sync", loader)
+          mod = importlib.util.module_from_spec(spec)
+          loader.exec_module(mod)
+
+          assert mod.parse_collection('{"items":[{"id":1}]}', "items")[0]["id"] == 1
+          assert mod.parse_collection('{"calendars":[1]}', "calendars", "items") == [1]
+          assert mod.parse_collection('{"events":[2]}', "events", "items") == [2]
+          assert mod.parse_collection("[3]", "items") == [3]
+
+          with patch.dict("os.environ", {"NEXT_EVENT_CLI": "gog"}, clear=False), \
+               patch.object(mod.shutil, "which", lambda n: "/bin/" + n if n == "gog" else None):
+              assert mod.resolve_backend("/tmp") == "gog"
+
+          with patch.dict("os.environ", {"NEXT_EVENT_CLI": "auto"}, clear=False), \
+               patch.object(mod.shutil, "which", lambda n: "/bin/" + n if n == "gog" else None), \
+               patch.object(mod, "pinned_backend", return_value="gog"):
+              assert mod.resolve_backend("/tmp") == "gog"
+
+          with patch.dict("os.environ", {"NEXT_EVENT_CLI": "auto"}, clear=False), \
+               patch.object(mod.shutil, "which", lambda n: "/bin/" + n if n in ("gws", "gog") else None), \
+               patch.object(mod, "pinned_backend", return_value=""):
+              assert mod.resolve_backend("/tmp") == "gws"
+          PY

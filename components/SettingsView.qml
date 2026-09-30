@@ -219,7 +219,7 @@ Item {
         visible: root.currentSourceMode === Model.SOURCE_MODE_JSON
         width: parent.width
         label: "Events JSON state path"
-        description: "Local state file synced with Google Calendar via OAuth background service."
+        description: "Local state file synced with Google Calendar via gws (default) or gog."
         text: root.hostWidget ? String(root.hostWidget.setting("eventsJsonPath", root.hostWidget.eventsJsonPath || "")) : ""
         placeholderText: "~/.local/state/omarchy/calendar-events.json"
         contentForeground: root.contentForeground

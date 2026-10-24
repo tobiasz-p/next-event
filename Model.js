@@ -1250,27 +1250,40 @@ class IcsParser {
     var now = options.now || new Date()
     var fromKey = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate()
 
+    // Only events overlapping today through the horizon are ever shown. Work
+    // feeds carry years of finished one-off meetings; keeping them all held
+    // hundreds of MB in the shell's JS heap and rescanned them on every tick.
+    var windowStartMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    var windowEndMs = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + lookaheadDays + 1
+    ).getTime()
+
     var tzResolver = options.tzResolver || new TimezoneResolver()
 
-    var lines = IcsParser.unfoldIcs(raw)
+    var text = String(raw || "").replace(/\r\n?/g, "\n")
+
     if (tzResolver && typeof tzResolver.registerVTimezones === "function") {
-      tzResolver.registerVTimezones(lines)
+      var tzLines = []
+      var zoneTexts = IcsParser.componentTexts(text, "VTIMEZONE")
+      for (var zoneIndex = 0; zoneIndex < zoneTexts.length; zoneIndex++) {
+        tzLines.push("BEGIN:VTIMEZONE")
+        tzLines = tzLines.concat(IcsParser.unfoldIcs(zoneTexts[zoneIndex]))
+        tzLines.push("END:VTIMEZONE")
+      }
+      tzResolver.registerVTimezones(tzLines)
     }
+
+    // A day of slack either side covers any UTC/zone offset in the raw dates.
+    var skipBeforeKey = DateTimeUtils.addDaysToKey(fromKey, -1)
+    var skipAfterKey = DateTimeUtils.addDaysToKey(fromKey, lookaheadDays + 2)
+
     var blocks = []
-    var currentBlock = null
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i].trim()
-      if (!line) continue
-      if (line === "BEGIN:VEVENT") {
-        currentBlock = []
-        blocks.push(currentBlock)
-        continue
-      }
-      if (line === "END:VEVENT") {
-        currentBlock = null
-        continue
-      }
-      if (currentBlock) currentBlock.push(line)
+    var eventTexts = IcsParser.componentTexts(text, "VEVENT")
+    for (var i = 0; i < eventTexts.length; i++) {
+      if (IcsParser.outsideWindow(eventTexts[i], skipBeforeKey, skipAfterKey)) continue
+      blocks.push(IcsParser.unfoldIcs(eventTexts[i]))
     }
 
     var parsedEvents = []
@@ -1388,7 +1401,53 @@ class IcsParser {
         feedLabel: (options && options.feedLabel) || null
       })
     }
-    return result
+
+    var inWindow = []
+    for (var resultIndex = 0; resultIndex < result.length; resultIndex++) {
+      var item = result[resultIndex]
+      if (item.end.getTime() <= windowStartMs || item.start.getTime() >= windowEndMs) continue
+      inWindow.push(item)
+    }
+    return inWindow
+  }
+
+  // The raw text between each BEGIN:<name> and END:<name> line, without
+  // splitting the rest of the feed into lines. Expects "\n" line endings.
+  static componentTexts(text, name) {
+    var texts = []
+    var beginPattern = new RegExp("^BEGIN:" + name + "[ \\t]*$", "gm")
+    var endPattern = new RegExp("^END:" + name + "[ \\t]*$", "gm")
+    while (beginPattern.exec(text) !== null) {
+      endPattern.lastIndex = beginPattern.lastIndex
+      var endMatch = endPattern.exec(text)
+      if (!endMatch) break
+      texts.push(text.substring(beginPattern.lastIndex, endMatch.index))
+      beginPattern.lastIndex = endPattern.lastIndex
+    }
+    return texts
+  }
+
+  // Cheap pre-check on a raw, still-folded VEVENT so a feed's years of
+  // finished meetings are never unfolded or handed to parseEventBlock.
+  // Recurring masters are always parsed, and so is anything whose dates
+  // can't be read off the raw lines. An override is kept if either its
+  // RECURRENCE-ID (it must suppress that master occurrence) or its own
+  // dates (it was rescheduled into view) fall inside the window.
+  static outsideWindow(text, beforeKey, afterKey) {
+    if (/^RRULE[;:]/m.test(text)) return false
+    var outside = IcsParser.datesOutside(text, beforeKey, afterKey)
+    if (!/^RECURRENCE-ID[;:]/m.test(text)) return outside
+    var recurrenceId = /^RECURRENCE-ID(?:;[^:\n]*)?:(\d{8})/m.exec(text)
+    if (!recurrenceId) return false
+    var recurrenceKey = parseInt(recurrenceId[1], 10)
+    return outside && (recurrenceKey < beforeKey || recurrenceKey > afterKey)
+  }
+
+  static datesOutside(text, beforeKey, afterKey) {
+    var start = /^DTSTART(?:;[^:\n]*)?:(\d{8})/m.exec(text)
+    if (start && parseInt(start[1], 10) > afterKey) return true
+    var end = /^DTEND(?:;[^:\n]*)?:(\d{8})/m.exec(text)
+    return !!end && parseInt(end[1], 10) < beforeKey
   }
 }
 

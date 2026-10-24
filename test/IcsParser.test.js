@@ -215,4 +215,146 @@ describe("IcsParser", () => {
       assert.strictEqual(aug18.length, 0, "Cancelled occurrence should not be present")
     })
   })
+
+  // parse() must return only events overlapping today through the lookahead
+  // horizon. Work feeds carry years of finished one-off meetings, and keeping
+  // them all costs hundreds of MB in the shell's JS heap.
+  describe("parse() lookahead window", () => {
+    // 09:00 local on Mon 17 Aug 2026; event times below are floating (local).
+    const NOW = new Date(2026, 7, 17, 9, 0, 0)
+
+    function calendar(events) {
+      return ["BEGIN:VCALENDAR", "VERSION:2.0", ...events.flat(), "END:VCALENDAR"].join("\r\n")
+    }
+
+    function vevent(uid, lines) {
+      return ["BEGIN:VEVENT", "UID:" + uid, ...lines, "END:VEVENT"]
+    }
+
+    function oneOff(title, start, end) {
+      return vevent(title, ["DTSTART:" + start, "DTEND:" + end, "SUMMARY:" + title])
+    }
+
+    function titles(raw) {
+      return IcsParser.parse(raw, { now: NOW, lookaheadDays: 3 })
+        .map(e => e.title)
+        .sort()
+    }
+
+    it("drops one-off events that ended before today", () => {
+      const raw = calendar([
+        oneOff("Last year", "20250817T100000", "20250817T110000"),
+        oneOff("Yesterday", "20260816T100000", "20260816T110000"),
+        oneOff("Today", "20260817T100000", "20260817T110000")
+      ])
+      assert.deepStrictEqual(titles(raw), ["Today"])
+    })
+
+    it("drops one-off events that start after the lookahead horizon", () => {
+      const raw = calendar([
+        oneOff("In window", "20260819T100000", "20260819T110000"),
+        oneOff("Next month", "20260917T100000", "20260917T110000")
+      ])
+      assert.deepStrictEqual(titles(raw), ["In window"])
+    })
+
+    it("keeps events from earlier today and events still in progress", () => {
+      const raw = calendar([
+        oneOff("Early today", "20260817T070000", "20260817T080000"),
+        oneOff("Multi-day", "20260815T090000", "20260818T090000")
+      ])
+      assert.deepStrictEqual(titles(raw), ["Early today", "Multi-day"])
+    })
+
+    it("keeps all-day events for today", () => {
+      const raw = calendar([
+        vevent("all-day", [
+          "DTSTART;VALUE=DATE:20260817",
+          "DTEND;VALUE=DATE:20260818",
+          "SUMMARY:Holiday"
+        ])
+      ])
+      assert.deepStrictEqual(titles(raw), ["Holiday"])
+    })
+
+    it("drops a past override whose instance and new time are both outside the window", () => {
+      const raw = calendar([
+        vevent("weekly", [
+          "DTSTART:20250101T100000",
+          "DTEND:20250101T110000",
+          "RRULE:FREQ=WEEKLY;BYDAY=WE",
+          "SUMMARY:Weekly"
+        ]),
+        vevent("weekly", [
+          "RECURRENCE-ID:20250604T100000",
+          "DTSTART:20250605T100000",
+          "DTEND:20250605T110000",
+          "SUMMARY:Weekly (moved last year)"
+        ])
+      ])
+      assert.deepStrictEqual(titles(raw), ["Weekly"])
+    })
+
+    it("suppresses an in-window occurrence that was moved out of the window", () => {
+      const raw = calendar([
+        vevent("weekly", [
+          "DTSTART:20250101T100000",
+          "DTEND:20250101T110000",
+          "RRULE:FREQ=WEEKLY;BYDAY=WE",
+          "SUMMARY:Weekly"
+        ]),
+        vevent("weekly", [
+          "RECURRENCE-ID:20260819T100000",
+          "DTSTART:20260902T100000",
+          "DTEND:20260902T110000",
+          "SUMMARY:Weekly (moved out)"
+        ])
+      ])
+      assert.deepStrictEqual(titles(raw), [])
+    })
+
+    it("keeps an override that moves an occurrence into the window", () => {
+      const raw = calendar([
+        vevent("weekly", [
+          "DTSTART:20250101T100000",
+          "DTEND:20250101T110000",
+          "RRULE:FREQ=WEEKLY;BYDAY=WE",
+          "SUMMARY:Weekly"
+        ]),
+        vevent("weekly", [
+          "RECURRENCE-ID:20260819T100000",
+          "DTSTART:20260819T150000",
+          "DTEND:20260819T160000",
+          "SUMMARY:Weekly (moved)"
+        ])
+      ])
+      assert.deepStrictEqual(titles(raw), ["Weekly (moved)"])
+    })
+
+    it("keeps recurring occurrences inside the window", () => {
+      const raw = calendar([
+        vevent("standup", [
+          "DTSTART:20250101T100000",
+          "DTEND:20250101T110000",
+          "RRULE:FREQ=DAILY",
+          "SUMMARY:Standup"
+        ])
+      ])
+      const events = IcsParser.parse(raw, { now: NOW, lookaheadDays: 3 })
+      assert.ok(events.length >= 3, "expected daily occurrences across the window")
+      for (const e of events) assert.strictEqual(e.title, "Standup")
+    })
+
+    it("ignores BEGIN:VEVENT text that is not on a line of its own", () => {
+      const raw = calendar([
+        vevent("quoted", [
+          "DTSTART:20260817T100000",
+          "DTEND:20260817T110000",
+          "SUMMARY:Today",
+          "DESCRIPTION:paste BEGIN:VEVENT here"
+        ])
+      ])
+      assert.deepStrictEqual(titles(raw), ["Today"])
+    })
+  })
 })

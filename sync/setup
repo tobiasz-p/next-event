@@ -70,7 +70,8 @@ select_calendars() {
   step_header "1/2" "Querying Google Calendars"
 
   info "Fetching calendars from your account..."
-  CAL_LIST_RAW=$(gws calendar calendarList list 2>/dev/null || echo '{"items":[]}')
+  # Keep stdout on failure: gws prints the API error as JSON there (e.g. Calendar API disabled).
+  CAL_LIST_RAW=$(gws calendar calendarList list 2>/dev/null || true)
 
   CAL_NAMES=()
   CAL_IDS=()
@@ -96,6 +97,8 @@ except Exception:
 
   if [ "${#CAL_NAMES[@]}" -eq 0 ]; then
     warn "No calendars found or not authenticated."
+    API_ERR=$(python3 -c "import sys, json; print(json.load(sys.stdin).get('error', {}).get('message', ''))" <<< "$CAL_LIST_RAW" 2>/dev/null || true)
+    [ -n "$API_ERR" ] && warn "Google API error: $API_ERR"
     info "Run full setup to authenticate first: $0"
     exit 1
   fi
@@ -240,6 +243,8 @@ if command -v gcloud >/dev/null 2>&1; then
 else
   info "gcloud CLI not found (skipping automated project creation)."
   info "You can create a project manually at: https://console.cloud.google.com/projectcreate"
+  warn "Then enable the Google Calendar API on it, or no calendars will be found:"
+  info "https://console.cloud.google.com/apis/library/calendar-json.googleapis.com"
 fi
 
 # 3. Google Cloud Console manual steps

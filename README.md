@@ -109,6 +109,8 @@ In many Google Workspace organizations, administrators disable the "Secret addre
 
 The setup script automates GCP project creation, Google Calendar API enablement, the OAuth login, and installs a systemd user timer to automatically sync events into `~/.local/state/omarchy/calendar-events.json` every 5 minutes.
 
+> **Without `gcloud` installed**, project creation and API enablement are skipped. Create the project yourself and enable the [Google Calendar API](https://console.cloud.google.com/apis/library/calendar-json.googleapis.com) on it before running the OAuth login — otherwise setup authenticates fine but reports "No calendars found or not authenticated" (the API returns `403 accessNotConfigured`).
+
 ---
 
 ### Option 2: Private iCal (.ics) Feed URL(s) (Personal Accounts)

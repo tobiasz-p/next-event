@@ -33,6 +33,11 @@ MEET_REGEX = re.compile(r"https://meet\.google\.com/[a-z0-9][a-z0-9-]+")
 # must match RESPONSE_STATUS_DECLINED in Model.js.
 RESPONSE_STATUS_DECLINED = "declined"
 
+# Sync contract: the eventType of Google Calendar working-location entries
+# ("Office", "Home"), which Model.js skips; must match
+# EVENT_TYPE_WORKING_LOCATION in Model.js.
+EVENT_TYPE_WORKING_LOCATION = "workingLocation"
+
 # Lookahead / lookbehind window for fetched events.
 FETCH_DAYS_PAST = 2
 FETCH_DAYS_AHEAD = 30

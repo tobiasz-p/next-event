@@ -40,6 +40,45 @@ describe("JsonStateParser", () => {
       assert.strictEqual(events[0].title, "Accepted Meeting")
     })
 
+    it("filters out Google Calendar working location entries", () => {
+      const raw = JSON.stringify([
+        {
+          title: "Office",
+          start: "2026-08-28",
+          end: "2026-08-29",
+          allDay: true,
+          eventType: "workingLocation"
+        },
+        { title: "Standup", start: "2026-08-28T10:00:00Z", eventType: "default" }
+      ])
+
+      const events = JsonStateParser.parseJsonEvents(raw)
+      assert.strictEqual(events.length, 1)
+      assert.strictEqual(events[0].title, "Standup")
+    })
+
+    it("filters out timed working location entries for split days", () => {
+      const raw = JSON.stringify([
+        {
+          title: "Home",
+          start: "2026-08-28T09:00:00Z",
+          end: "2026-08-28T12:00:00Z",
+          eventType: "workingLocation"
+        },
+        {
+          title: "Office",
+          start: "2026-08-28T13:00:00Z",
+          end: "2026-08-28T17:00:00Z",
+          eventType: "workingLocation"
+        },
+        { title: "Lunch", start: "2026-08-28T12:00:00Z", end: "2026-08-28T13:00:00Z" }
+      ])
+
+      const events = JsonStateParser.parseJsonEvents(raw)
+      assert.strictEqual(events.length, 1)
+      assert.strictEqual(events[0].title, "Lunch")
+    })
+
     it("extracts meeting links from description when meetingUrl is not directly set", () => {
       const raw = JSON.stringify([
         {

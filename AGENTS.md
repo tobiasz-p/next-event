@@ -30,7 +30,7 @@ Comprehensive test suites in `test/*.test.js` cover:
 - `TimezoneResolver`: `parseTzOffset`, VTIMEZONE DST transitions (BYDAY incl. negative ordinals, BYMONTHDAY), `zonedToUtc` round-trips against the system tz database, no-Intl fallback, and per-parse table reset.
 - `MeetingLinkDetector`: `VIDEO_PROVIDERS` patterns, `findMeetUrl`, `meetLabel`, and decoy link rejection across Meet, Zoom, Teams, Webex, and GoTo fixtures.
 - `IcsParser` & `RecurrenceExpander`: iCalendar unfolding, unescaping, RFC 5545 recurrence rules (`DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`), EXDATE exclusions, and RECURRENCE-ID overrides.
-- `JsonStateParser`: Omarchy local sync JSON parsing, declined invite filtering, and date parsing.
+- `JsonStateParser`: Omarchy local sync JSON parsing, declined invite and working-location filtering, and date parsing.
 - `ScheduleAggregator`: Event sorting, upcoming/ongoing buckets, all-day vs timed event prioritization, and day grouping.
 - `DisplayFormatter`: Header status, countdown strings, duration formatting, and tooltip generation.
 - `PanelNavigationModel`: Keyboard and hover cursor indexing.

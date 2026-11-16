@@ -49,6 +49,9 @@ var LABEL_JUST_NOW = "just now"
 var DEFAULT_EVENT_TITLE = "(Untitled)"
 var DEFAULT_CALENDAR_URL_BASE = "https://calendar.google.com/calendar"
 var RESPONSE_STATUS_DECLINED = "declined"
+// Google Calendar "working location" entries (e.g. "Office", "Home") are
+// per-day status markers, not events; the sync emits them with this eventType.
+var EVENT_TYPE_WORKING_LOCATION = "workingLocation"
 
 var SECTION_EVENTS = "EVENTS"
 var SECTION_SETTINGS = "SETTINGS"
@@ -192,6 +195,7 @@ var Constants = {
   DEFAULT_EVENT_TITLE: DEFAULT_EVENT_TITLE,
   DEFAULT_CALENDAR_URL_BASE: DEFAULT_CALENDAR_URL_BASE,
   RESPONSE_STATUS_DECLINED: RESPONSE_STATUS_DECLINED,
+  EVENT_TYPE_WORKING_LOCATION: EVENT_TYPE_WORKING_LOCATION,
   SECTION_EVENTS: SECTION_EVENTS,
   SECTION_SETTINGS: SECTION_SETTINGS,
   SECTION_TODAY: SECTION_TODAY,
@@ -1424,6 +1428,7 @@ class JsonStateParser {
       var item = rawList[i]
       if (!item) continue
       if (item.responseStatus === RESPONSE_STATUS_DECLINED) continue
+      if (item.eventType === EVENT_TYPE_WORKING_LOCATION) continue
       if (item.status === "cancelled") continue
 
       var startParsed = DateTimeUtils.parseIsoDate(item.start)
